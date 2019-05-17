@@ -1,0 +1,167 @@
+import { ITransport } from './transport';
+import {
+    RequestHeader, RequestArgumentHeader, ResponseHeader, ModelHeader, ModelPropertyHeader, ArrayHeader, ArrayItemHeader,
+    IRequestHeader, IRequestArgumentHeader, IResponseHeader, IModelHeader, IModelPropertyHeader, IArrayHeader, IArrayItemHeader
+} from './headers';
+
+export interface IProtocol {
+    writeData(transport: ITransport, metadata: Map<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
+    readData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, metadata: Map<string, Buffer>) => TResult): Promise<TResult>;
+    writeAndReadData<TResult = void>(transport: ITransport, metadata: Map<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: Map<string, Buffer>) => TResult)) => Promise<TResult>>;
+}
+export abstract class AProtocol implements IProtocol {
+    public abstract writeData(transport: ITransport, metadata: Map<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
+    public abstract readData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, metadata: Map<string, Buffer>) => TResult): Promise<TResult>;
+    public abstract writeAndReadData<TResult = void>(transport: ITransport, metadata: Map<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: Map<string, Buffer>) => TResult)) => Promise<TResult>>;
+}
+
+export interface IProtocolReader {
+    readonly transport: ITransport;
+    readonly protocol: IProtocol;
+
+    readStringValue(): string;
+    readBooleanValue(): boolean;
+    readByteValue(): number;
+    readShortValue(): number;
+    readIntegerValue(): number;
+    readLongValue(): number;
+    readFloatValue(): number;
+    readDoubleValue(): number;
+    readEnumValue<T>(): T;
+
+    readRequestHeader(): IRequestHeader;
+    readRequestArgumentHeader(): IRequestArgumentHeader;
+    readResponseHeader(): IResponseHeader;
+    readModelHeader(): IModelHeader;
+    readModelPropertyHeader(): IModelPropertyHeader;
+    readArrayHeader(): IArrayHeader;
+    readArrayItemHeader(): IArrayItemHeader;
+}
+export interface IProtocolWriter {
+    readonly transport: ITransport;
+    readonly protocol: IProtocol;
+
+    writeStringValue(value: string): void;
+    writeBooleanValue(value: boolean): void;
+    writeByteValue(value: number): void;
+    writeShortValue(value: number): void;
+    writeIntegerValue(value: number): void;
+    writeLongValue(value: number): void;
+    writeFloatValue(value: number): void;
+    writeDoubleValue(value: number): void;
+    writeEnumValue<T>(value: T): void;
+
+    writeRequestHeader(header: IRequestHeader): void;
+    writeRequestArgumentHeader(header: IRequestArgumentHeader): void;
+    writeResponseHeader(header: IResponseHeader): void;
+    writeModelHeader(header: IModelHeader): void;
+    writeModelPropertyHeader(header: IModelPropertyHeader): void;
+    writeArrayHeader(header: IArrayHeader): void;
+    writeArrayItemHeader(header: IArrayItemHeader): void;
+}
+
+export abstract class AProtocolReader implements IProtocolReader {
+    public readonly transport: ITransport;
+    public readonly protocol: IProtocol;
+
+    public constructor(transport: ITransport, protocol: IProtocol) {
+        this.transport = transport;
+        this.protocol = protocol;
+    }
+
+    public abstract readStringValue(): string;
+    public abstract readBooleanValue(): boolean;
+    public abstract readByteValue(): number;
+    public abstract readShortValue(): number;
+    public abstract readIntegerValue(): number;
+    public abstract readLongValue(): number;
+    public abstract readFloatValue(): number;
+    public abstract readDoubleValue(): number;
+    public abstract readEnumValue<T>(): T;
+
+    public readRequestHeader() {
+        const actionName = this.readStringValue();
+        const argumentCount = this.readIntegerValue();
+
+        return new RequestHeader(actionName, argumentCount);
+    }
+    public readRequestArgumentHeader() {
+        const argumentName = this.readStringValue();
+        const type = this.readStringValue();
+
+        return new RequestArgumentHeader(argumentName, type);
+    }
+    public readResponseHeader() {
+        const success = this.readBooleanValue();
+
+        return new ResponseHeader(success);
+    }
+    public readModelHeader() {
+        const modelName = this.readStringValue();
+        const propertyCount = this.readIntegerValue();
+
+        return new ModelHeader(modelName, propertyCount);
+    }
+    public readModelPropertyHeader() {
+        const propertyName = this.readStringValue();
+        const type = this.readStringValue();
+
+        return new ModelPropertyHeader(propertyName, type);
+    }
+    public readArrayHeader() {
+        const itemCount = this.readIntegerValue();
+
+        return new ArrayHeader(itemCount);
+    }
+    public readArrayItemHeader() {
+        const type = this.readStringValue();
+
+        return new ArrayItemHeader(type);
+    }
+}
+
+export abstract class AProtocolWriter implements IProtocolWriter {
+    public readonly transport: ITransport;
+    public readonly protocol: IProtocol;
+
+    public constructor(transport: ITransport, protocol: IProtocol) {
+        this.transport = transport;
+        this.protocol = protocol;
+    }
+
+    public abstract writeStringValue(value: string): void;
+    public abstract writeBooleanValue(value: boolean): void;
+    public abstract writeByteValue(value: number): void;
+    public abstract writeShortValue(value: number): void;
+    public abstract writeIntegerValue(value: number): void;
+    public abstract writeLongValue(value: number): void;
+    public abstract writeFloatValue(value: number): void;
+    public abstract writeDoubleValue(value: number): void;
+    public abstract writeEnumValue<T>(value: T): void;
+
+    public writeRequestHeader(header: IRequestHeader) {
+        this.writeStringValue(header.actionName);
+        this.writeIntegerValue(header.argumentCount);
+    }
+    public writeRequestArgumentHeader(header: IRequestArgumentHeader) {
+        this.writeStringValue(header.argumentName);
+        this.writeStringValue(header.type);
+    }
+    public writeResponseHeader(header: IResponseHeader) {
+        this.writeBooleanValue(header.success);
+    }
+    public writeModelHeader(header: IModelHeader) {
+        this.writeStringValue(header.modelName);
+        this.writeIntegerValue(header.propertyCount);
+    }
+    public writeModelPropertyHeader(header: IModelPropertyHeader) {
+        this.writeStringValue(header.propertyName);
+        this.writeStringValue(header.type);
+    }
+    public writeArrayHeader(header: IArrayHeader) {
+        this.writeIntegerValue(header.itemCount);
+    }
+    public writeArrayItemHeader(header: IArrayItemHeader) {
+        this.writeStringValue(header.type);
+    }
+}
