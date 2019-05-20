@@ -9,7 +9,6 @@
     "watch": "tsc --watch"
   },
   "devDependencies": {
-    "@jlekie/build-utils": "^0.0.3",
     "@types/debug": "^0.0.31",
     "@types/node": "^10.12.5",
     "ts-node": "^7.0.1",
