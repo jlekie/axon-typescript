@@ -36,7 +36,7 @@ export class AxonDiscoveryServiceClient extends AServiceClient implements IAxonD
 
     public async registerService(serviceName: string, endpoint: string): Promise<void> {
         // Implementation Type: axon/clientRequest
-        const readHandler = await this.protocol.writeAndReadData(this.transport, new Map(), (protocol) => {
+        const readHandler = await this.protocol.writeAndReadData(this.transport, {}, (protocol) => {
             protocol.writeRequestHeader(new RequestHeader('registerService', 2));
 
             protocol.writeRequestArgumentHeader(new RequestArgumentHeader('serviceName', 'string'));
@@ -61,7 +61,7 @@ export class AxonDiscoveryServiceClient extends AServiceClient implements IAxonD
 
     public async resolveRegisteredService(serviceName: string, timeout: number): Promise<string> {
         // Implementation Type: axon/clientRequest
-        const readHandler = await this.protocol.writeAndReadData<string>(this.transport, new Map(), (protocol) => {
+        const readHandler = await this.protocol.writeAndReadData<string>(this.transport, {}, (protocol) => {
             protocol.writeRequestHeader(new RequestHeader('resolveRegisteredService', 2));
 
             protocol.writeRequestArgumentHeader(new RequestArgumentHeader('serviceName', 'string'));
@@ -95,7 +95,7 @@ export class AxonDiscoveryServiceClient extends AServiceClient implements IAxonD
 
     public async resolveRegisteredServices(serviceName: string, timeout: number): Promise<Array<string>> {
         // Implementation Type: axon/clientRequest
-        const readHandler = await this.protocol.writeAndReadData<Array<string>>(this.transport, new Map(), (protocol) => {
+        const readHandler = await this.protocol.writeAndReadData<Array<string>>(this.transport, {}, (protocol) => {
             protocol.writeRequestHeader(new RequestHeader('resolveRegisteredServices', 2));
 
             protocol.writeRequestArgumentHeader(new RequestArgumentHeader('serviceName', 'string'));
@@ -249,19 +249,21 @@ export class AxonDiscoveryServiceServer extends AServiceServer implements IAxonD
             }
         }));
 
-        readHandler().then(async (handledRequest) => {
+        const writeTask = readHandler().then(async (handledRequest) => {
             await this.protocol.writeData(this.transport, handledRequest.metadata, (protocol) => {
                 if (handledRequest.success) {
-                    protocol.writeResponseHeader(new ResponseHeader(true));
-
                     switch (handledRequest.actionName) {
                         case 'resolveRegisteredService': {
                             const handledResult = handledRequest.result as string;
+
+                            protocol.writeResponseHeader(new ResponseHeader(true, 'string'));
 
                             protocol.writeStringValue(handledResult);
                         }
                         case 'resolveRegisteredServices': {
                             const handledResult = handledRequest.result as Array<string>;
+
+                            protocol.writeResponseHeader(new ResponseHeader(true, 'array'));
 
                             protocol.writeArrayHeader(new ArrayHeader(handledResult.length));
                             for (const item of handledResult) {
@@ -274,7 +276,7 @@ export class AxonDiscoveryServiceServer extends AServiceServer implements IAxonD
                 else {
                     console.log(handledRequest.error.stack);
 
-                    protocol.writeResponseHeader(new ResponseHeader(false));
+                    protocol.writeResponseHeader(new ResponseHeader(false, 'model'));
 
                     const requestError = new RequestError(handledRequest.error.message);
 

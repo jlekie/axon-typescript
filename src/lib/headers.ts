@@ -36,12 +36,15 @@ export class RequestArgumentHeader implements IRequestArgumentHeader {
 
 export interface IResponseHeader {
     readonly success: boolean;
+    readonly type: string;
 }
 export class ResponseHeader implements IResponseHeader {
     public readonly success: boolean;
+    public readonly type: string;
 
-    public constructor(success: boolean) {
+    public constructor(success: boolean, type: string) {
         this.success = success;
+        this.type = type;
     }
 }
 

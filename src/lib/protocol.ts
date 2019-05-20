@@ -5,14 +5,26 @@ import {
 } from './headers';
 
 export interface IProtocol {
-    writeData(transport: ITransport, metadata: Map<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
-    readData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, metadata: Map<string, Buffer>) => TResult): Promise<TResult>;
-    writeAndReadData<TResult = void>(transport: ITransport, metadata: Map<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: Map<string, Buffer>) => TResult)) => Promise<TResult>>;
+    writeData(transport: ITransport, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
+    writeTaggedData(transport: ITransport, messageId: string, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
+
+    readData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult): Promise<TResult>;
+    readTaggedData<TResult = void>(transport: ITransport, messageId: string, handler: (protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult): Promise<TResult>;
+
+    readBufferedTaggedData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, messageId: string, metadata: Record<string, Buffer>) => TResult): Promise<TResult>;
+
+    writeAndReadData<TResult = void>(transport: ITransport, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult)) => Promise<TResult>>;
 }
 export abstract class AProtocol implements IProtocol {
-    public abstract writeData(transport: ITransport, metadata: Map<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
-    public abstract readData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, metadata: Map<string, Buffer>) => TResult): Promise<TResult>;
-    public abstract writeAndReadData<TResult = void>(transport: ITransport, metadata: Map<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: Map<string, Buffer>) => TResult)) => Promise<TResult>>;
+    public abstract writeData(transport: ITransport, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
+    public abstract writeTaggedData(transport: ITransport, messageId: string, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
+
+    public abstract readData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult): Promise<TResult>;
+    public abstract readTaggedData<TResult = void>(transport: ITransport, messageId: string, handler: (protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult): Promise<TResult>;
+
+    public abstract readBufferedTaggedData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, messageId: string, metadata: Record<string, Buffer>) => TResult): Promise<TResult>;
+
+    public abstract writeAndReadData<TResult = void>(transport: ITransport, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult)) => Promise<TResult>>;
 }
 
 export interface IProtocolReader {
@@ -93,8 +105,9 @@ export abstract class AProtocolReader implements IProtocolReader {
     }
     public readResponseHeader() {
         const success = this.readBooleanValue();
+        const type = this.readStringValue();
 
-        return new ResponseHeader(success);
+        return new ResponseHeader(success, type);
     }
     public readModelHeader() {
         const modelName = this.readStringValue();
