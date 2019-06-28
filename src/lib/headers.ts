@@ -37,13 +37,30 @@ export class RequestArgumentHeader implements IRequestArgumentHeader {
 export interface IResponseHeader {
     readonly success: boolean;
     readonly type: string;
+    readonly argumentCount: number;
 }
 export class ResponseHeader implements IResponseHeader {
     public readonly success: boolean;
     public readonly type: string;
+    public readonly argumentCount: number;
 
-    public constructor(success: boolean, type: string) {
+    public constructor(success: boolean, type: string, argumentCount: number = 0) {
         this.success = success;
+        this.type = type;
+        this.argumentCount = argumentCount;
+    }
+}
+
+export interface IResponseArgumentHeader {
+    readonly argumentName: string;
+    readonly type: string;
+}
+export class ResponseArgumentHeader implements IResponseArgumentHeader {
+    public readonly argumentName: string;
+    public readonly type: string;
+
+    public constructor(argumentName: string, type: string) {
+        this.argumentName = argumentName;
         this.type = type;
     }
 }

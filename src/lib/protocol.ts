@@ -1,7 +1,7 @@
 import { ITransport } from './transport';
 import {
     RequestHeader, RequestArgumentHeader, ResponseHeader, ModelHeader, ModelPropertyHeader, ArrayHeader, ArrayItemHeader,
-    IRequestHeader, IRequestArgumentHeader, IResponseHeader, IModelHeader, IModelPropertyHeader, IArrayHeader, IArrayItemHeader
+    IRequestHeader, IRequestArgumentHeader, IResponseHeader, IModelHeader, IModelPropertyHeader, IArrayHeader, IArrayItemHeader, ResponseArgumentHeader, IResponseArgumentHeader
 } from './headers';
 
 export interface IProtocol {
@@ -44,6 +44,7 @@ export interface IProtocolReader {
     readRequestHeader(): IRequestHeader;
     readRequestArgumentHeader(): IRequestArgumentHeader;
     readResponseHeader(): IResponseHeader;
+    readResponseArgumentHeader(): IResponseArgumentHeader;
     readModelHeader(): IModelHeader;
     readModelPropertyHeader(): IModelPropertyHeader;
     readArrayHeader(): IArrayHeader;
@@ -66,6 +67,7 @@ export interface IProtocolWriter {
     writeRequestHeader(header: IRequestHeader): void;
     writeRequestArgumentHeader(header: IRequestArgumentHeader): void;
     writeResponseHeader(header: IResponseHeader): void;
+    writeResponseArgumentHeader(header: IResponseArgumentHeader): void;
     writeModelHeader(header: IModelHeader): void;
     writeModelPropertyHeader(header: IModelPropertyHeader): void;
     writeArrayHeader(header: IArrayHeader): void;
@@ -106,8 +108,15 @@ export abstract class AProtocolReader implements IProtocolReader {
     public readResponseHeader() {
         const success = this.readBooleanValue();
         const type = this.readStringValue();
+        const argumentCount = this.readIntegerValue();
 
-        return new ResponseHeader(success, type);
+        return new ResponseHeader(success, type, argumentCount);
+    }
+    public readResponseArgumentHeader() {
+        const argumentName = this.readStringValue();
+        const type = this.readStringValue();
+
+        return new ResponseArgumentHeader(argumentName, type);
     }
     public readModelHeader() {
         const modelName = this.readStringValue();
@@ -162,6 +171,12 @@ export abstract class AProtocolWriter implements IProtocolWriter {
     }
     public writeResponseHeader(header: IResponseHeader) {
         this.writeBooleanValue(header.success);
+        this.writeStringValue(header.type);
+        this.writeIntegerValue(header.argumentCount);
+    }
+    public writeResponseArgumentHeader(header: IResponseArgumentHeader) {
+        this.writeStringValue(header.argumentName);
+        this.writeStringValue(header.type);
     }
     public writeModelHeader(header: IModelHeader) {
         this.writeStringValue(header.modelName);
