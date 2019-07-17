@@ -58,15 +58,14 @@ export class EntanglementProtocol extends AProtocol {
     public async readTaggedData<TResult = void>(transport: ITransport, messageId: string, handler: (protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult): Promise<TResult> {
         const { data, metadata } = await transport.receiveTagged(messageId);
 
-        const buffer = new ReadableStreamBuffer({ chunkSize: data.length || this.decoderChunkSize });
-        const decoderStream = MessagePack.createDecodeStream();
+        const buffer = new ReadableStreamBuffer({ chunkSize: data.length });
 
         const result = await new Promise<TResult>((resolve, reject) => {
             buffer.once('readable', async () => {
                 try {
-                    buffer.read();
+                    // buffer.read();
 
-                    const reader = new EntanglementProtocolReader(transport, this, decoderStream);
+                    const reader = new EntanglementProtocolReader(transport, this, buffer);
                     resolve(handler(reader, metadata));
                 }
                 catch (err) {
@@ -76,9 +75,6 @@ export class EntanglementProtocol extends AProtocol {
 
             buffer.put(data);
             buffer.stop();
-
-            decoderStream.pause();
-            buffer.pipe(decoderStream);
         });
 
         return result;
@@ -87,15 +83,14 @@ export class EntanglementProtocol extends AProtocol {
     public async readBufferedTaggedData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, messageId: string, metadata: Record<string, Buffer>) => TResult): Promise<TResult> {
         const { tag, data, metadata } = await transport.receiveBufferedTagged();
 
-        const buffer = new ReadableStreamBuffer({ chunkSize: data.length || this.decoderChunkSize });
-        const decoderStream = MessagePack.createDecodeStream();
+        const buffer = new ReadableStreamBuffer({ chunkSize: data.length });
 
         const result = await new Promise<TResult>((resolve, reject) => {
             buffer.once('readable', async () => {
                 try {
                     buffer.read();
 
-                    const reader = new EntanglementProtocolReader(transport, this, decoderStream);
+                    const reader = new EntanglementProtocolReader(transport, this, buffer);
                     resolve(handler(reader, tag, metadata));
                 }
                 catch (err) {
@@ -105,9 +100,6 @@ export class EntanglementProtocol extends AProtocol {
 
             buffer.put(data);
             buffer.stop();
-
-            decoderStream.pause();
-            buffer.pipe(decoderStream);
         });
 
         return result;
@@ -115,14 +107,9 @@ export class EntanglementProtocol extends AProtocol {
 
     public async writeAndReadData<TResult = void>(transport: ITransport, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult)) => Promise<TResult>> {
         const buffer = new WritableStreamBuffer();
-        const encoderStream = MessagePack.createEncodeStream();
 
-        encoderStream.pipe(buffer);
-
-        const writer = new EntanglementProtocolWriter(transport, this, encoderStream);
+        const writer = new EntanglementProtocolWriter(transport, this, buffer);
         handler(writer);
-
-        encoderStream.end();
 
         const data = buffer.getContents();
         if (!data)
@@ -133,15 +120,14 @@ export class EntanglementProtocol extends AProtocol {
         return async (readHandler) => {
             const { data, metadata } = await receiveHandler();
 
-            const buffer = new ReadableStreamBuffer({ chunkSize: data.length || this.decoderChunkSize });
-            const decoderStream = MessagePack.createDecodeStream();
+            const buffer = new ReadableStreamBuffer({ chunkSize: data.length });
 
             const result = await new Promise<TResult>((resolve, reject) => {
                 buffer.once('readable', async () => {
                     try {
                         buffer.read();
 
-                        const reader = new EntanglementProtocolReader(transport, this, decoderStream);
+                        const reader = new EntanglementProtocolReader(transport, this, buffer);
                         resolve(readHandler(reader, metadata));
                     }
                     catch (err) {
@@ -151,9 +137,6 @@ export class EntanglementProtocol extends AProtocol {
 
                 buffer.put(data);
                 buffer.stop();
-
-                decoderStream.pause();
-                buffer.pipe(decoderStream);
             });
 
             return result;
@@ -171,31 +154,56 @@ export class EntanglementProtocolReader extends AProtocolReader {
     }
 
     public readStringValue(): string {
-        const lengthBuffer = this.decoderStream.read(4);
+        const lengthBuffer = this.read(4);
+        const contentLength = lengthBuffer.readInt32LE(0);
+
+        const contentBuffer = this.read(contentLength);
+
+        return contentBuffer.toString('utf8');
     }
     public readBooleanValue(): boolean {
-        return this.read<boolean>();
+        const buffer = this.read(1);
+
+        return buffer.readIntLE(0, 1) === 1;
     }
     public readByteValue(): number {
-        return this.read<number>();
+        const buffer = this.read(1);
+
+        return buffer.readInt8(0);
     }
     public readShortValue(): number {
-        return this.read<number>();
+        const buffer = this.read(2);
+
+        return buffer.readInt16LE(0);
     }
     public readIntegerValue(): number {
-        return this.read<number>();
+        const buffer = this.read(4);
+
+        return buffer.readInt32LE(0);
     }
     public readLongValue(): number {
-        return this.read<number>();
+        throw new Error('not implemented');
     }
     public readFloatValue(): number {
-        return this.read<number>();
+        const buffer = this.read(4);
+
+        return buffer.readFloatLE(0);
     }
     public readDoubleValue(): number {
-        return this.read<number>();
+        const buffer = this.read(8);
+
+        return buffer.readDoubleLE(0);
     }
     public readEnumValue<T>(): T {
-        return this.read<T>();
+        const buffer = this.read(4);
+
+        const enumValue = buffer.readInt32LE(0);
+
+        return <T><any>enumValue;
+    }
+
+    private read(size: number): Buffer {
+        return this.decoderStream.read(size);
     }
 }
 
@@ -212,14 +220,14 @@ export class EntanglementProtocolWriter extends AProtocolWriter {
         const contentBuffer = Buffer.from(value, 'utf8');
 
         const lengthBuffer = Buffer.alloc(4);
-        lengthBuffer.writeInt32BE(contentBuffer.length, 0);
+        lengthBuffer.writeInt32LE(contentBuffer.length, 0);
 
         this.encoderStream.write(lengthBuffer);
         this.encoderStream.write(contentBuffer);
     }
     public writeBooleanValue(value: boolean) {
         const buffer = Buffer.alloc(1);
-        buffer.writeIntBE(value ? 1 : 0, 0, 1);
+        buffer.writeIntLE(value ? 1 : 0, 0, 1);
 
         this.encoderStream.write(buffer);
     }
@@ -231,13 +239,13 @@ export class EntanglementProtocolWriter extends AProtocolWriter {
     }
     public writeShortValue(value: number) {
         const buffer = Buffer.alloc(2);
-        buffer.writeInt16BE(value, 0);
+        buffer.writeInt16LE(value, 0);
 
         this.encoderStream.write(buffer);
     }
     public writeIntegerValue(value: number) {
         const buffer = Buffer.alloc(4);
-        buffer.writeInt32BE(value, 0);
+        buffer.writeInt32LE(value, 0);
 
         this.encoderStream.write(buffer);
     }
@@ -246,19 +254,19 @@ export class EntanglementProtocolWriter extends AProtocolWriter {
     }
     public writeFloatValue(value: number) {
         const buffer = Buffer.alloc(4);
-        buffer.writeFloatBE(value, 0);
+        buffer.writeFloatLE(value, 0);
 
         this.encoderStream.write(buffer);
     }
     public writeDoubleValue(value: number) {
         const buffer = Buffer.alloc(8);
-        buffer.writeDoubleBE(value, 0);
+        buffer.writeDoubleLE(value, 0);
 
         this.encoderStream.write(buffer);
     }
     public writeEnumValue<T>(value: T) {
         const buffer = Buffer.alloc(4);
-        buffer.writeInt32BE(<number><any>value, 0);
+        buffer.writeInt32LE(<number><any>value, 0);
 
         this.encoderStream.write(buffer);
     }
