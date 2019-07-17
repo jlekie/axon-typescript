@@ -39,7 +39,7 @@ export class EntanglementProtocol extends AProtocol {
         const result = await new Promise<TResult>((resolve, reject) => {
             buffer.once('readable', async () => {
                 try {
-                    buffer.read();
+                    // buffer.read();
 
                     const reader = new EntanglementProtocolReader(transport, this, buffer);
                     resolve(handler(reader, metadata));
@@ -88,7 +88,7 @@ export class EntanglementProtocol extends AProtocol {
         const result = await new Promise<TResult>((resolve, reject) => {
             buffer.once('readable', async () => {
                 try {
-                    buffer.read();
+                    // buffer.read();
 
                     const reader = new EntanglementProtocolReader(transport, this, buffer);
                     resolve(handler(reader, tag, metadata));
@@ -125,7 +125,7 @@ export class EntanglementProtocol extends AProtocol {
             const result = await new Promise<TResult>((resolve, reject) => {
                 buffer.once('readable', async () => {
                     try {
-                        buffer.read();
+                        // buffer.read();
 
                         const reader = new EntanglementProtocolReader(transport, this, buffer);
                         resolve(readHandler(reader, metadata));
