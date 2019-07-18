@@ -157,9 +157,14 @@ export class EntanglementProtocolReader extends AProtocolReader {
         const lengthBuffer = this.read(4);
         const contentLength = lengthBuffer.readInt32LE(0);
 
-        const contentBuffer = this.read(contentLength);
+        if (contentLength > 0) {
+            const contentBuffer = this.read(contentLength);
 
-        return contentBuffer.toString('utf8');
+            return contentBuffer.toString('utf8');
+        }
+        else {
+            return '';
+        }
     }
     public readBooleanValue(): boolean {
         const buffer = this.read(1);
