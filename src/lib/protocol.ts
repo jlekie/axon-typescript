@@ -1,7 +1,7 @@
 import { ITransport } from './transport';
 import {
     RequestHeader, RequestArgumentHeader, ResponseHeader, ModelHeader, ModelPropertyHeader, ArrayHeader, ArrayItemHeader,
-    IRequestHeader, IRequestArgumentHeader, IResponseHeader, IModelHeader, IModelPropertyHeader, IArrayHeader, IArrayItemHeader, ResponseArgumentHeader, IResponseArgumentHeader
+    IRequestHeader, IRequestArgumentHeader, IResponseHeader, IModelHeader, IModelPropertyHeader, IArrayHeader, IArrayItemHeader, ResponseArgumentHeader, IResponseArgumentHeader, IDictionaryHeader, DictionaryHeader
 } from './headers';
 
 export interface IProtocol {
@@ -49,6 +49,7 @@ export interface IProtocolReader {
     readModelPropertyHeader(): IModelPropertyHeader;
     readArrayHeader(): IArrayHeader;
     readArrayItemHeader(): IArrayItemHeader;
+    readDictionaryHeader(): IDictionaryHeader;
 }
 export interface IProtocolWriter {
     readonly transport: ITransport;
@@ -72,6 +73,7 @@ export interface IProtocolWriter {
     writeModelPropertyHeader(header: IModelPropertyHeader): void;
     writeArrayHeader(header: IArrayHeader): void;
     writeArrayItemHeader(header: IArrayItemHeader): void;
+    writeDictionaryHeader(header: IDictionaryHeader): void;
 }
 
 export abstract class AProtocolReader implements IProtocolReader {
@@ -140,6 +142,13 @@ export abstract class AProtocolReader implements IProtocolReader {
 
         return new ArrayItemHeader(type);
     }
+    public readDictionaryHeader() {
+        const keyType = this.readStringValue();
+        const valueType = this.readStringValue();
+        const recordCount = this.readIntegerValue();
+
+        return new DictionaryHeader(keyType, valueType, recordCount);
+    }
 }
 
 export abstract class AProtocolWriter implements IProtocolWriter {
@@ -191,5 +200,10 @@ export abstract class AProtocolWriter implements IProtocolWriter {
     }
     public writeArrayItemHeader(header: IArrayItemHeader) {
         this.writeStringValue(header.type);
+    }
+    public writeDictionaryHeader(header: IDictionaryHeader) {
+        this.writeStringValue(header.keyType);
+        this.writeStringValue(header.valueType);
+        this.writeIntegerValue(header.recordCount);
     }
 }
