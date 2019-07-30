@@ -116,18 +116,26 @@ export class ArrayItemHeader implements IArrayItemHeader {
 }
 
 export interface IDictionaryHeader {
-    readonly keyType: string;
-    readonly valueType: string;
     readonly recordCount: number;
 }
 export class DictionaryHeader implements IDictionaryHeader {
-    public readonly keyType: string;
-    public readonly valueType: string;
     public readonly recordCount: number;
 
-    public constructor(keyType: string, valueType: string, recordCount: number) {
+    public constructor(recordCount: number) {
+        this.recordCount = recordCount;
+    }
+}
+
+export interface IDictionaryItemHeader {
+    readonly keyType: string;
+    readonly valueType: string;
+}
+export class DictionaryItemHeader implements IDictionaryItemHeader {
+    public readonly keyType: string;
+    public readonly valueType: string;
+
+    public constructor(keyType: string, valueType: string) {
         this.keyType = keyType;
         this.valueType = valueType;
-        this.recordCount = recordCount;
     }
 }

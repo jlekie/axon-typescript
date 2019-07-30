@@ -1,7 +1,7 @@
 import { ITransport } from './transport';
 import {
     RequestHeader, RequestArgumentHeader, ResponseHeader, ModelHeader, ModelPropertyHeader, ArrayHeader, ArrayItemHeader,
-    IRequestHeader, IRequestArgumentHeader, IResponseHeader, IModelHeader, IModelPropertyHeader, IArrayHeader, IArrayItemHeader, ResponseArgumentHeader, IResponseArgumentHeader, IDictionaryHeader, DictionaryHeader
+    IRequestHeader, IRequestArgumentHeader, IResponseHeader, IModelHeader, IModelPropertyHeader, IArrayHeader, IArrayItemHeader, ResponseArgumentHeader, IResponseArgumentHeader, IDictionaryHeader, DictionaryHeader, IDictionaryItemHeader, DictionaryItemHeader
 } from './headers';
 
 export interface IProtocol {
@@ -50,6 +50,7 @@ export interface IProtocolReader {
     readArrayHeader(): IArrayHeader;
     readArrayItemHeader(): IArrayItemHeader;
     readDictionaryHeader(): IDictionaryHeader;
+    readDictionaryItemHeader(): IDictionaryItemHeader;
 }
 export interface IProtocolWriter {
     readonly transport: ITransport;
@@ -74,6 +75,7 @@ export interface IProtocolWriter {
     writeArrayHeader(header: IArrayHeader): void;
     writeArrayItemHeader(header: IArrayItemHeader): void;
     writeDictionaryHeader(header: IDictionaryHeader): void;
+    writeDictionaryItemHeader(header: IDictionaryItemHeader): void;
 }
 
 export abstract class AProtocolReader implements IProtocolReader {
@@ -143,11 +145,15 @@ export abstract class AProtocolReader implements IProtocolReader {
         return new ArrayItemHeader(type);
     }
     public readDictionaryHeader() {
-        const keyType = this.readStringValue();
-        const valueType = this.readStringValue();
         const recordCount = this.readIntegerValue();
 
-        return new DictionaryHeader(keyType, valueType, recordCount);
+        return new DictionaryHeader(recordCount);
+    }
+    public readDictionaryItemHeader() {
+        const keyType = this.readStringValue();
+        const valueType = this.readStringValue();
+
+        return new DictionaryItemHeader(keyType, valueType);
     }
 }
 
@@ -202,8 +208,10 @@ export abstract class AProtocolWriter implements IProtocolWriter {
         this.writeStringValue(header.type);
     }
     public writeDictionaryHeader(header: IDictionaryHeader) {
+        this.writeIntegerValue(header.recordCount);
+    }
+    public writeDictionaryItemHeader(header: IDictionaryItemHeader) {
         this.writeStringValue(header.keyType);
         this.writeStringValue(header.valueType);
-        this.writeIntegerValue(header.recordCount);
     }
 }
