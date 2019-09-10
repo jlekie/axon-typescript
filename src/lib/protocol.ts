@@ -1,7 +1,7 @@
 import { ITransport } from './transport';
 import {
     RequestHeader, RequestArgumentHeader, ResponseHeader, ModelHeader, ModelPropertyHeader, ArrayHeader, ArrayItemHeader,
-    IRequestHeader, IRequestArgumentHeader, IResponseHeader, IModelHeader, IModelPropertyHeader, IArrayHeader, IArrayItemHeader, ResponseArgumentHeader, IResponseArgumentHeader, IDictionaryHeader, DictionaryHeader, IDictionaryItemHeader, DictionaryItemHeader
+    IRequestHeader, IRequestArgumentHeader, IResponseHeader, IModelHeader, IModelPropertyHeader, IArrayHeader, IArrayItemHeader, ResponseArgumentHeader, IResponseArgumentHeader, IDictionaryHeader, DictionaryHeader, IDictionaryItemHeader, DictionaryItemHeader, IIndefiniteValueHeader, IndefiniteValueHeader
 } from './headers';
 
 export interface IProtocol {
@@ -51,6 +51,7 @@ export interface IProtocolReader {
     readArrayItemHeader(): IArrayItemHeader;
     readDictionaryHeader(): IDictionaryHeader;
     readDictionaryItemHeader(): IDictionaryItemHeader;
+    readIndefiniteValueHeader(): IIndefiniteValueHeader;
 }
 export interface IProtocolWriter {
     readonly transport: ITransport;
@@ -76,6 +77,7 @@ export interface IProtocolWriter {
     writeArrayItemHeader(header: IArrayItemHeader): void;
     writeDictionaryHeader(header: IDictionaryHeader): void;
     writeDictionaryItemHeader(header: IDictionaryItemHeader): void;
+    writeIndefiniteValueHeader(header: IIndefiniteValueHeader): void;
 }
 
 export abstract class AProtocolReader implements IProtocolReader {
@@ -155,6 +157,11 @@ export abstract class AProtocolReader implements IProtocolReader {
 
         return new DictionaryItemHeader(keyType, valueType);
     }
+    public readIndefiniteValueHeader() {
+        const valueType = this.readStringValue();
+
+        return new IndefiniteValueHeader(valueType);
+    }
 }
 
 export abstract class AProtocolWriter implements IProtocolWriter {
@@ -212,6 +219,9 @@ export abstract class AProtocolWriter implements IProtocolWriter {
     }
     public writeDictionaryItemHeader(header: IDictionaryItemHeader) {
         this.writeStringValue(header.keyType);
+        this.writeStringValue(header.valueType);
+    }
+    public writeIndefiniteValueHeader(header: IIndefiniteValueHeader) {
         this.writeStringValue(header.valueType);
     }
 }

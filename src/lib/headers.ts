@@ -139,3 +139,14 @@ export class DictionaryItemHeader implements IDictionaryItemHeader {
         this.valueType = valueType;
     }
 }
+
+export interface IIndefiniteValueHeader {
+    readonly valueType: string;
+}
+export class IndefiniteValueHeader implements IIndefiniteValueHeader {
+    public readonly valueType: string;
+
+    public constructor(valueType: string) {
+        this.valueType = valueType;
+    }
+}
