@@ -186,8 +186,15 @@ export class EntanglementProtocolReader extends AProtocolReader {
 
         return buffer.readInt32LE(0);
     }
-    public readLongValue(): number {
-        throw new Error('not implemented');
+    public readLongValue(): BigInt {
+        const reversedBuffer = Buffer.from(this.read(8));
+        reversedBuffer.reverse();
+
+        const hex = reversedBuffer.toString('hex');
+        if (hex.length === 0)
+            return BigInt(0);
+        else
+            return BigInt(`0x${hex}`);
     }
     public readFloatValue(): number {
         const buffer = this.read(4);
@@ -254,8 +261,13 @@ export class EntanglementProtocolWriter extends AProtocolWriter {
 
         this.encoderStream.write(buffer);
     }
-    public writeLongValue(value: number) {
-        throw new Error('not implemented');
+    public writeLongValue(value: BigInt) {
+        const width = 8;
+        const hex = value.toString(16);
+        const buffer = Buffer.from(hex.padStart(width * 2, '0').slice(0, width * 2), 'hex');
+        buffer.reverse();
+
+        this.encoderStream.write(buffer);
     }
     public writeFloatValue(value: number) {
         const buffer = Buffer.alloc(4);
