@@ -9,7 +9,7 @@ export * from './lib/service';
 export * from './lib/requestError';
 export * from './lib/requestMessage';
 
-export * from './lib/axonDiscoveryService';
-export * from './lib/discovery/axonDiscovery';
+// export * from './lib/axonDiscoveryService';
+// export * from './lib/discovery/axonDiscovery';
 
 export * from './lib/protocol/entanglementProtocol';

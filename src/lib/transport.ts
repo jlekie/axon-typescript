@@ -122,6 +122,16 @@ export class TransportMessage {
     }
 }
 
+export class TaggedTransportMessage {
+    public readonly id: string;
+    public readonly message: TransportMessage;
+
+    public constructor(id: string, message: TransportMessage) {
+        this.id = id;
+        this.message = message;
+    }
+}
+
 export interface IReceivedData {
     readonly data: Buffer;
     readonly metadata: Record<string, Buffer>;
@@ -218,15 +228,15 @@ export interface ITransport {
     onMessageReceived(handler: TransportEventHandlerWithPayload<TransportMessage>): void;
     onMessageSent(handler: TransportEventHandlerWithPayload<TransportMessage>): void;
 
-    send(data: Buffer, metadata: Record<string, Buffer>): Promise<void>;
-    sendTagged(messageId: string, data: Buffer, metadata: Record<string, Buffer>): Promise<void>;
+    send(message: TransportMessage): Promise<void>;
+    sendTagged(messageId: string, message: TransportMessage): Promise<void>;
 
-    receive(): Promise<IReceivedData>;
-    receiveTagged(messageId: string): Promise<IReceivedData>;
+    receive(): Promise<TransportMessage>;
+    receiveTagged(messageId: string): Promise<TransportMessage>;
 
-    receiveBufferedTagged(): Promise<IReceivedTaggedData>;
+    receiveBufferedTagged(): Promise<TaggedTransportMessage>;
 
-    sendAndReceive(data: Buffer, metadata: Record<string, Buffer>): Promise<() => Promise<IReceivedData>>;
+    sendAndReceive(message: TransportMessage): Promise<() => Promise<TransportMessage>>;
 }
 export interface IServerTransport extends ITransport {
     listen(): Promise<void>;
@@ -254,15 +264,15 @@ export abstract class ATransport implements ITransport {
         this.messageSentEvent.on(handler);
     }
 
-    public abstract send(data: Buffer, metadata: Record<string, Buffer>): Promise<void>;
-    public abstract sendTagged(messageId: string, data: Buffer, metadata: Record<string, Buffer>): Promise<void>;
+    public abstract send(message: TransportMessage): Promise<void>;
+    public abstract sendTagged(messageId: string, message: TransportMessage): Promise<void>;
 
-    public abstract receive(): Promise<IReceivedData>;
-    public abstract receiveTagged(messageId: string): Promise<IReceivedData>;
+    public abstract receive(): Promise<TransportMessage>;
+    public abstract receiveTagged(messageId: string): Promise<TransportMessage>;
 
-    public abstract receiveBufferedTagged(): Promise<IReceivedTaggedData>;
+    public abstract receiveBufferedTagged(): Promise<TaggedTransportMessage>;
 
-    public abstract sendAndReceive(data: Buffer, metadata: Record<string, Buffer>): Promise<() => Promise<IReceivedData>>;
+    public abstract sendAndReceive(message: TransportMessage): Promise<() => Promise<TransportMessage>>;
 }
 export abstract class AServerTransport extends ATransport implements IServerTransport {
     public abstract listen(): Promise<void>;

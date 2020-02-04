@@ -1,30 +1,30 @@
-import { ITransport } from './transport';
+import { ITransport, ITransportMetadata } from './transport';
 import {
     RequestHeader, RequestArgumentHeader, ResponseHeader, ModelHeader, ModelPropertyHeader, ArrayHeader, ArrayItemHeader,
     IRequestHeader, IRequestArgumentHeader, IResponseHeader, IModelHeader, IModelPropertyHeader, IArrayHeader, IArrayItemHeader, ResponseArgumentHeader, IResponseArgumentHeader, IDictionaryHeader, DictionaryHeader, IDictionaryItemHeader, DictionaryItemHeader, IIndefiniteValueHeader, IndefiniteValueHeader
 } from './headers';
 
 export interface IProtocol {
-    writeData(transport: ITransport, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
-    writeTaggedData(transport: ITransport, messageId: string, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
+    writeData(transport: ITransport, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
+    writeTaggedData(transport: ITransport, messageId: string, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
 
-    readData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult): Promise<TResult>;
-    readTaggedData<TResult = void>(transport: ITransport, messageId: string, handler: (protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult): Promise<TResult>;
+    readData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, metadata: ITransportMetadata) => TResult): Promise<TResult>;
+    readTaggedData<TResult = void>(transport: ITransport, messageId: string, handler: (protocolReader: IProtocolReader, metadata: ITransportMetadata) => TResult): Promise<TResult>;
 
-    readBufferedTaggedData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, messageId: string, metadata: Record<string, Buffer>) => TResult): Promise<TResult>;
+    readBufferedTaggedData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, messageId: string, metadata: ITransportMetadata) => TResult): Promise<TResult>;
 
-    writeAndReadData<TResult = void>(transport: ITransport, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult)) => Promise<TResult>>;
+    writeAndReadData<TResult = void>(transport: ITransport, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: ITransportMetadata) => TResult)) => Promise<TResult>>;
 }
 export abstract class AProtocol implements IProtocol {
-    public abstract writeData(transport: ITransport, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
-    public abstract writeTaggedData(transport: ITransport, messageId: string, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
+    public abstract writeData(transport: ITransport, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
+    public abstract writeTaggedData(transport: ITransport, messageId: string, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
 
-    public abstract readData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult): Promise<TResult>;
-    public abstract readTaggedData<TResult = void>(transport: ITransport, messageId: string, handler: (protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult): Promise<TResult>;
+    public abstract readData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, metadata: ITransportMetadata) => TResult): Promise<TResult>;
+    public abstract readTaggedData<TResult = void>(transport: ITransport, messageId: string, handler: (protocolReader: IProtocolReader, metadata: ITransportMetadata) => TResult): Promise<TResult>;
 
-    public abstract readBufferedTaggedData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, messageId: string, metadata: Record<string, Buffer>) => TResult): Promise<TResult>;
+    public abstract readBufferedTaggedData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, messageId: string, metadata: ITransportMetadata) => TResult): Promise<TResult>;
 
-    public abstract writeAndReadData<TResult = void>(transport: ITransport, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult)) => Promise<TResult>>;
+    public abstract writeAndReadData<TResult = void>(transport: ITransport, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: ITransportMetadata) => TResult)) => Promise<TResult>>;
 }
 
 export interface IProtocolReader {

@@ -1,4 +1,4 @@
-import { AProtocol, AProtocolReader, AProtocolWriter, ITransport, IProtocol, IProtocolReader, IProtocolWriter } from '../..';
+import { AProtocol, AProtocolReader, AProtocolWriter, ITransport, IProtocol, IProtocolReader, IProtocolWriter, ITransportMetadata, TransportMessage, VolatileTransportMetadata } from '../..';
 import { ReadableStreamBuffer, WritableStreamBuffer } from 'stream-buffers';
 
 export class EntanglementProtocol extends AProtocol {
@@ -6,7 +6,7 @@ export class EntanglementProtocol extends AProtocol {
         super();
     }
 
-    public async writeData(transport: ITransport, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<void> {
+    public async writeData(transport: ITransport, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void> {
         const buffer = new WritableStreamBuffer();
 
         const writer = new EntanglementProtocolWriter(transport, this, buffer);
@@ -16,9 +16,9 @@ export class EntanglementProtocol extends AProtocol {
         if (!data)
             throw new Error('Buffer empty');
 
-        await transport.send(data, metadata);
+        await transport.send(new TransportMessage(data, VolatileTransportMetadata.fromMetadata(metadata)));
     }
-    public async writeTaggedData(transport: ITransport, messageId: string, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<void> {
+    public async writeTaggedData(transport: ITransport, messageId: string, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void> {
         const buffer = new WritableStreamBuffer();
 
         const writer = new EntanglementProtocolWriter(transport, this, buffer);
@@ -28,13 +28,13 @@ export class EntanglementProtocol extends AProtocol {
         if (!data)
             throw new Error('Buffer empty');
 
-        await transport.sendTagged(messageId, data, metadata);
+        await transport.sendTagged(messageId, new TransportMessage(data, VolatileTransportMetadata.fromMetadata(metadata)));
     }
 
-    public async readData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult): Promise<TResult> {
-        const { data, metadata } = await transport.receive();
+    public async readData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, metadata: ITransportMetadata) => TResult): Promise<TResult> {
+        const receivedData = await transport.receive();
 
-        const buffer = new ReadableStreamBuffer({ chunkSize: data.length });
+        const buffer = new ReadableStreamBuffer({ chunkSize: receivedData.payload.length });
 
         const result = await new Promise<TResult>((resolve, reject) => {
             buffer.once('readable', async () => {
@@ -42,23 +42,23 @@ export class EntanglementProtocol extends AProtocol {
                     // buffer.read();
 
                     const reader = new EntanglementProtocolReader(transport, this, buffer);
-                    resolve(handler(reader, metadata));
+                    resolve(handler(reader, receivedData.metadata));
                 }
                 catch (err) {
                     reject(err);
                 }
             });
 
-            buffer.put(data);
+            buffer.put(receivedData.payload);
             buffer.stop();
         });
 
         return result;
     }
-    public async readTaggedData<TResult = void>(transport: ITransport, messageId: string, handler: (protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult): Promise<TResult> {
-        const { data, metadata } = await transport.receiveTagged(messageId);
+    public async readTaggedData<TResult = void>(transport: ITransport, messageId: string, handler: (protocolReader: IProtocolReader, metadata: ITransportMetadata) => TResult): Promise<TResult> {
+        const receivedData = await transport.receiveTagged(messageId);
 
-        const buffer = new ReadableStreamBuffer({ chunkSize: data.length });
+        const buffer = new ReadableStreamBuffer({ chunkSize: receivedData.payload.length });
 
         const result = await new Promise<TResult>((resolve, reject) => {
             buffer.once('readable', async () => {
@@ -66,24 +66,24 @@ export class EntanglementProtocol extends AProtocol {
                     // buffer.read();
 
                     const reader = new EntanglementProtocolReader(transport, this, buffer);
-                    resolve(handler(reader, metadata));
+                    resolve(handler(reader, receivedData.metadata));
                 }
                 catch (err) {
                     reject(err);
                 }
             });
 
-            buffer.put(data);
+            buffer.put(receivedData.payload);
             buffer.stop();
         });
 
         return result;
     }
 
-    public async readBufferedTaggedData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, messageId: string, metadata: Record<string, Buffer>) => TResult): Promise<TResult> {
-        const { tag, data, metadata } = await transport.receiveBufferedTagged();
+    public async readBufferedTaggedData<TResult = void>(transport: ITransport, handler: (protocolReader: IProtocolReader, messageId: string, metadata: ITransportMetadata) => TResult): Promise<TResult> {
+        const { id, message } = await transport.receiveBufferedTagged();
 
-        const buffer = new ReadableStreamBuffer({ chunkSize: data.length });
+        const buffer = new ReadableStreamBuffer({ chunkSize: message.payload.length });
 
         const result = await new Promise<TResult>((resolve, reject) => {
             buffer.once('readable', async () => {
@@ -91,21 +91,21 @@ export class EntanglementProtocol extends AProtocol {
                     // buffer.read();
 
                     const reader = new EntanglementProtocolReader(transport, this, buffer);
-                    resolve(handler(reader, tag, metadata));
+                    resolve(handler(reader, id, message.metadata));
                 }
                 catch (err) {
                     reject(err);
                 }
             });
 
-            buffer.put(data);
+            buffer.put(message.payload);
             buffer.stop();
         });
 
         return result;
     }
 
-    public async writeAndReadData<TResult = void>(transport: ITransport, metadata: Record<string, Buffer>, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: Record<string, Buffer>) => TResult)) => Promise<TResult>> {
+    public async writeAndReadData<TResult = void>(transport: ITransport, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: ITransportMetadata) => TResult)) => Promise<TResult>> {
         const buffer = new WritableStreamBuffer();
 
         const writer = new EntanglementProtocolWriter(transport, this, buffer);
@@ -115,10 +115,10 @@ export class EntanglementProtocol extends AProtocol {
         if (!data)
             throw new Error('Buffer empty');
 
-        const receiveHandler = await transport.sendAndReceive(data, metadata);
+        const receiveHandler = await transport.sendAndReceive(new TransportMessage(data, VolatileTransportMetadata.fromMetadata(metadata)));
 
         return async (readHandler) => {
-            const { data, metadata } = await receiveHandler();
+            const { payload: data, metadata } = await receiveHandler();
 
             const buffer = new ReadableStreamBuffer({ chunkSize: data.length });
 
