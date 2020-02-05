@@ -6,10 +6,43 @@ export class EntanglementProtocol extends AProtocol {
         super();
     }
 
+    public async read<T>(data: Buffer, handler: (reader: IProtocolReader) => T): Promise<T> {
+        const buffer = new ReadableStreamBuffer({ chunkSize: data.length });
+
+        const result = await new Promise<T>((resolve, reject) => {
+            buffer.once('readable', async () => {
+                try {
+                    const reader = new EntanglementProtocolReader(buffer);
+                    resolve(handler(reader));
+                }
+                catch (err) {
+                    reject(err);
+                }
+            });
+
+            buffer.put(data);
+            buffer.stop();
+        });
+
+        return result;
+    }
+    public write(handler: (writer: IProtocolWriter) => void): Buffer {
+        const buffer = new WritableStreamBuffer();
+
+        const writer = new EntanglementProtocolWriter(buffer);
+        handler(writer);
+
+        const data = buffer.getContents();
+        if (!data)
+            throw new Error('Buffer empty');
+
+        return data;
+    }
+
     public async writeData(transport: ITransport, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void> {
         const buffer = new WritableStreamBuffer();
 
-        const writer = new EntanglementProtocolWriter(transport, this, buffer);
+        const writer = new EntanglementProtocolWriter(buffer);
         handler(writer);
 
         const data = buffer.getContents();
@@ -21,7 +54,7 @@ export class EntanglementProtocol extends AProtocol {
     public async writeTaggedData(transport: ITransport, messageId: string, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void> {
         const buffer = new WritableStreamBuffer();
 
-        const writer = new EntanglementProtocolWriter(transport, this, buffer);
+        const writer = new EntanglementProtocolWriter(buffer);
         handler(writer);
 
         const data = buffer.getContents();
@@ -41,7 +74,7 @@ export class EntanglementProtocol extends AProtocol {
                 try {
                     // buffer.read();
 
-                    const reader = new EntanglementProtocolReader(transport, this, buffer);
+                    const reader = new EntanglementProtocolReader(buffer);
                     resolve(handler(reader, receivedData.metadata));
                 }
                 catch (err) {
@@ -65,7 +98,7 @@ export class EntanglementProtocol extends AProtocol {
                 try {
                     // buffer.read();
 
-                    const reader = new EntanglementProtocolReader(transport, this, buffer);
+                    const reader = new EntanglementProtocolReader(buffer);
                     resolve(handler(reader, receivedData.metadata));
                 }
                 catch (err) {
@@ -90,7 +123,7 @@ export class EntanglementProtocol extends AProtocol {
                 try {
                     // buffer.read();
 
-                    const reader = new EntanglementProtocolReader(transport, this, buffer);
+                    const reader = new EntanglementProtocolReader(buffer);
                     resolve(handler(reader, id, message.metadata));
                 }
                 catch (err) {
@@ -108,7 +141,7 @@ export class EntanglementProtocol extends AProtocol {
     public async writeAndReadData<TResult = void>(transport: ITransport, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: ITransportMetadata) => TResult)) => Promise<TResult>> {
         const buffer = new WritableStreamBuffer();
 
-        const writer = new EntanglementProtocolWriter(transport, this, buffer);
+        const writer = new EntanglementProtocolWriter(buffer);
         handler(writer);
 
         const data = buffer.getContents();
@@ -127,7 +160,7 @@ export class EntanglementProtocol extends AProtocol {
                     try {
                         // buffer.read();
 
-                        const reader = new EntanglementProtocolReader(transport, this, buffer);
+                        const reader = new EntanglementProtocolReader(buffer);
                         resolve(readHandler(reader, metadata));
                     }
                     catch (err) {
@@ -147,8 +180,8 @@ export class EntanglementProtocol extends AProtocol {
 export class EntanglementProtocolReader extends AProtocolReader {
     public readonly decoderStream: ReadableStreamBuffer;
 
-    public constructor(transport: ITransport, protocol: IProtocol, decoderStream: ReadableStreamBuffer) {
-        super(transport, protocol);
+    public constructor(decoderStream: ReadableStreamBuffer) {
+        super();
 
         this.decoderStream = decoderStream;
     }
@@ -222,8 +255,8 @@ export class EntanglementProtocolReader extends AProtocolReader {
 export class EntanglementProtocolWriter extends AProtocolWriter {
     public readonly encoderStream: WritableStreamBuffer;
 
-    public constructor(transport: ITransport, protocol: IProtocol, encoderStream: WritableStreamBuffer) {
-        super(transport, protocol);
+    public constructor(encoderStream: WritableStreamBuffer) {
+        super();
 
         this.encoderStream = encoderStream;
     }

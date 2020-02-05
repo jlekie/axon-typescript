@@ -28,9 +28,6 @@ export abstract class AProtocol implements IProtocol {
 }
 
 export interface IProtocolReader {
-    readonly transport: ITransport;
-    readonly protocol: IProtocol;
-
     readStringValue(): string;
     readBooleanValue(): boolean;
     readByteValue(): number;
@@ -54,9 +51,6 @@ export interface IProtocolReader {
     readIndefiniteValueHeader(): IIndefiniteValueHeader;
 }
 export interface IProtocolWriter {
-    readonly transport: ITransport;
-    readonly protocol: IProtocol;
-
     writeStringValue(value: string): void;
     writeBooleanValue(value: boolean): void;
     writeByteValue(value: number): void;
@@ -81,14 +75,6 @@ export interface IProtocolWriter {
 }
 
 export abstract class AProtocolReader implements IProtocolReader {
-    public readonly transport: ITransport;
-    public readonly protocol: IProtocol;
-
-    public constructor(transport: ITransport, protocol: IProtocol) {
-        this.transport = transport;
-        this.protocol = protocol;
-    }
-
     public abstract readStringValue(): string;
     public abstract readBooleanValue(): boolean;
     public abstract readByteValue(): number;
@@ -165,14 +151,6 @@ export abstract class AProtocolReader implements IProtocolReader {
 }
 
 export abstract class AProtocolWriter implements IProtocolWriter {
-    public readonly transport: ITransport;
-    public readonly protocol: IProtocol;
-
-    public constructor(transport: ITransport, protocol: IProtocol) {
-        this.transport = transport;
-        this.protocol = protocol;
-    }
-
     public abstract writeStringValue(value: string): void;
     public abstract writeBooleanValue(value: boolean): void;
     public abstract writeByteValue(value: number): void;
