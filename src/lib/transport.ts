@@ -96,6 +96,15 @@ export class VolatileTransportMetadata implements ITransportMetadata {
     public add(id: string, data: Buffer) {
         this.frames.push(new VolatileTransportMetadataFrame(id, data));
     }
+    public addOrSet(id: string, data: Buffer) {
+        const frame = this.frames.find(f => f.id === id);
+        if (frame) {
+            frame.data = data;
+        }
+        else {
+            this.frames.push(new VolatileTransportMetadataFrame(id, data));
+        }
+    }
 
     public pluck(id: string) {
         const idx = this.frames.findIndex(f => f.id === id);
