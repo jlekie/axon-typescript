@@ -1,4 +1,4 @@
-import * as UuidV4 from 'uuid/v4';
+import { v4 as UuidV4 } from 'uuid';
 
 export interface ITransportMetadataFrame {
     readonly id: string;
