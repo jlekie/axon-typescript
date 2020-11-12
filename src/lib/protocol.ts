@@ -33,7 +33,7 @@ export interface IProtocolReader {
     readByteValue(): number;
     readShortValue(): number;
     readIntegerValue(): number;
-    readLongValue(): BigInt;
+    readLongValue(): bigint;
     readFloatValue(): number;
     readDoubleValue(): number;
     readEnumValue<T>(): T;
@@ -56,7 +56,7 @@ export interface IProtocolWriter {
     writeByteValue(value: number): void;
     writeShortValue(value: number): void;
     writeIntegerValue(value: number): void;
-    writeLongValue(value: BigInt): void;
+    writeLongValue(value: bigint): void;
     writeFloatValue(value: number): void;
     writeDoubleValue(value: number): void;
     writeEnumValue<T>(value: T): void;
@@ -80,7 +80,7 @@ export abstract class AProtocolReader implements IProtocolReader {
     public abstract readByteValue(): number;
     public abstract readShortValue(): number;
     public abstract readIntegerValue(): number;
-    public abstract readLongValue(): BigInt;
+    public abstract readLongValue(): bigint;
     public abstract readFloatValue(): number;
     public abstract readDoubleValue(): number;
     public abstract readEnumValue<T>(): T;
@@ -156,7 +156,7 @@ export abstract class AProtocolWriter implements IProtocolWriter {
     public abstract writeByteValue(value: number): void;
     public abstract writeShortValue(value: number): void;
     public abstract writeIntegerValue(value: number): void;
-    public abstract writeLongValue(value: BigInt): void;
+    public abstract writeLongValue(value: bigint): void;
     public abstract writeFloatValue(value: number): void;
     public abstract writeDoubleValue(value: number): void;
     public abstract writeEnumValue<T>(value: T): void;

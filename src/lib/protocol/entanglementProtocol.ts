@@ -219,7 +219,7 @@ export class EntanglementProtocolReader extends AProtocolReader {
 
         return buffer.readInt32LE(0);
     }
-    public readLongValue(): BigInt {
+    public readLongValue(): bigint {
         const reversedBuffer = Buffer.from(this.read(8));
         reversedBuffer.reverse();
 
