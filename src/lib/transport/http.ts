@@ -3,14 +3,19 @@ import * as Https from 'https';
 import Axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 import * as Stream from 'stream';
-import { ReadableStreamBuffer, WritableStreamBuffer } from 'stream-buffers';
+// import { ReadableStreamBuffer, WritableStreamBuffer } from 'stream-buffers';
 
 import { AClientTransport, TransportMessage, TaggedTransportMessage, VolatileTransportMetadata, VolatileTransportMetadataFrame } from '../transport';
+
+import { IProtocolReader, IProtocolWriter } from '../protocol';
+import { EntanglementProtocol } from '../protocol/entanglementProtocol';
 
 export class HttpClientTransport extends AClientTransport {
     public readonly client: AxiosInstance;
 
     private pendingRequests: Map<string, Promise<AxiosResponse<Buffer>>[]> = new Map();
+
+    private protocol: EntanglementProtocol;
 
     public constructor(url: string) {
         super();
@@ -25,6 +30,8 @@ export class HttpClientTransport extends AClientTransport {
                 rejectUnauthorized: false
             })
         });
+
+        this.protocol = new EntanglementProtocol();
     }
 
     public connect(timeout?: number | undefined): Promise<void> {
@@ -35,20 +42,15 @@ export class HttpClientTransport extends AClientTransport {
     }
 
     public async send(message: TransportMessage): Promise<void> {
-        const writer = new WritableStreamBuffer();
-        writeTransportMessage(writer, message);
+        const data = this.protocol.write(writer => altWriteTransportMessage(writer, message));
 
-        var data = writer.getContents();
         if (data)
             await this.client.post('axon/send', data.toString('base64'));
         else
             await this.client.post('axon/send');
     }
     public async sendTagged(messageId: string, message: TransportMessage): Promise<void> {
-        const writer = new WritableStreamBuffer();
-        writeTransportMessage(writer, message);
-
-        var data = writer.getContents();
+        const data = this.protocol.write(writer => altWriteTransportMessage(writer, message));
 
         const pendingRequests = this.pendingRequests.get(messageId) || [];
         if (data) {
@@ -66,21 +68,7 @@ export class HttpClientTransport extends AClientTransport {
     public async receive(): Promise<TransportMessage> {
         const response = await this.client.get<Buffer>('axon/receive');
 
-        const reader = new ReadableStreamBuffer({ chunkSize: response.data.length });
-        const message = await new Promise<TransportMessage>((resolve, reject) => {
-            reader.once('readable', () => {
-                try {
-                    const message = readTransportMessage(reader);
-                    resolve(message);
-                }
-                catch (err) {
-                    reject(err);
-                }
-            });
-
-            reader.put(Buffer.from(response.data.toString('utf8'), 'base64'));
-            reader.stop();
-        });
+        const message = this.protocol.read(Buffer.from(response.data.toString('utf8'), 'base64'), reader => altReadTransportMessage(reader));
 
         return message;
     }
@@ -100,21 +88,7 @@ export class HttpClientTransport extends AClientTransport {
             return pendingRequest;
         })();
 
-        const reader = new ReadableStreamBuffer({ chunkSize: response.data.length });
-        const message = await new Promise<TransportMessage>((resolve, reject) => {
-            reader.once('readable', () => {
-                try {
-                    const message = readTransportMessage(reader);
-                    resolve(message);
-                }
-                catch (err) {
-                    reject(err);
-                }
-            });
-
-            reader.put(Buffer.from(response.data.toString('utf8'), 'base64'));
-            reader.stop();
-        });
+        const message = this.protocol.read(Buffer.from(response.data.toString('utf8'), 'base64'), reader => altReadTransportMessage(reader));
 
         return message;
     }
@@ -125,6 +99,37 @@ export class HttpClientTransport extends AClientTransport {
     public sendAndReceive(message: TransportMessage): Promise<() => Promise<TransportMessage>> {
         throw new Error("Method not implemented.");
     }
+}
+
+function altWriteTransportMessage(writer: IProtocolWriter, message: TransportMessage) {
+    writer.writeIntegerValue(0);
+    writer.writeIntegerValue(message.metadata.frames.length);
+
+    for (const frame of message.metadata.frames) {
+        writer.writeStringValue(frame.id);
+        writer.writeData(frame.data);
+    }
+
+    writer.writeData(message.payload);
+}
+function altReadTransportMessage(reader: IProtocolReader): TransportMessage {
+    const metadata = new VolatileTransportMetadata();
+
+    const signal = reader.readIntegerValue();
+    if (signal !== 0)
+        throw new Error(`Message received with signal code ${signal}`);
+
+    const frameCount = reader.readIntegerValue();
+    for (var a = 0; a < frameCount; a++) {
+        const id = reader.readStringValue();
+        const data = reader.readData();
+
+        metadata.frames.push(new VolatileTransportMetadataFrame(id, data));
+    }
+
+    const payloadData = reader.readData();
+
+    return new TransportMessage(payloadData, metadata);
 }
 
 function writeTransportMessage(writer: Stream.Writable, message: TransportMessage) {
