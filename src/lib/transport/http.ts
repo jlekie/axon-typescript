@@ -26,7 +26,7 @@ export class HttpClientTransport extends AClientTransport {
                 username: 'test',
                 password: '123abc'
             },
-            httpsAgent: new Https.Agent({
+            httpsAgent: Https.Agent && new Https.Agent({
                 rejectUnauthorized: false
             })
         });
