@@ -44,6 +44,13 @@ export class RequestError implements IRequestError {
         }
     }
 
+    public slipstreamWrite(writer: IProtocolWriter) {
+        writer.writeStringValue(this.message ?? 'Undefined');
+    }
+    public slipstreamRead(reader: IProtocolReader) {
+        this.message = reader.readStringValue();
+    }
+
     public toError() {
         return new Error(this.message);
     }
