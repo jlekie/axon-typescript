@@ -1,5 +1,5 @@
-import * as Http from 'http';
-import * as Https from 'https';
+// import * as Http from 'http';
+// import * as Https from 'https';
 import Axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 import * as Stream from 'stream';
@@ -26,9 +26,9 @@ export class HttpClientTransport extends AClientTransport {
                 username: 'test',
                 password: '123abc'
             },
-            httpsAgent: Https.Agent && new Https.Agent({
-                rejectUnauthorized: false
-            })
+            // httpsAgent: Https.Agent && new Https.Agent({
+            //     rejectUnauthorized: false
+            // })
         });
 
         this.protocol = new EntanglementProtocol();
