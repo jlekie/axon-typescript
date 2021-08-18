@@ -12,13 +12,16 @@ import { EntanglementProtocol } from '../protocol/entanglementProtocol';
 
 export class HttpClientTransport extends AClientTransport {
     public readonly client: AxiosInstance;
+    public readonly tagRequests: boolean;
 
     private pendingRequests: Map<string, Promise<AxiosResponse<Buffer>>[]> = new Map();
 
     private protocol: EntanglementProtocol;
 
-    public constructor(url: string) {
+    public constructor(url: string, options: Partial<Pick<HttpClientTransport, 'tagRequests'>> = {}) {
         super();
+
+        this.tagRequests = options.tagRequests ?? true;
 
         this.client = Axios.create({
             baseURL: url,
@@ -54,14 +57,14 @@ export class HttpClientTransport extends AClientTransport {
 
         const pendingRequests = this.pendingRequests.get(messageId) || [];
         if (data) {
-            this.pendingRequests.set(messageId, pendingRequests.concat(this.client.post<Buffer>(`axon/req?tag=${messageId}`, data.toString('base64'), {
+            this.pendingRequests.set(messageId, pendingRequests.concat(this.client.post<Buffer>(this.tagRequests ? `axon/req?tag=${messageId}` : 'axon/req', data.toString('base64'), {
                 headers: {
                     'Content-Type': 'text/plain'
                 }
             })));
         }
         else {
-            this.pendingRequests.set(messageId, pendingRequests.concat(this.client.post<Buffer>(`axon/req?tag=${messageId}`)));
+            this.pendingRequests.set(messageId, pendingRequests.concat(this.client.post<Buffer>(this.tagRequests ? `axon/req?tag=${messageId}` : 'axon/req')));
         }
     }
 
