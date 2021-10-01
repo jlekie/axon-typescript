@@ -15,3 +15,7 @@ export * from './lib/requestMessage';
 export * from './lib/protocol/entanglementProtocol';
 
 export * from './lib/transport/http';
+
+export interface SlipstreamReaderOptions {
+    overwriteModels?: true;
+}
