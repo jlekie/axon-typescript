@@ -55,11 +55,14 @@ export class HttpClientTransport extends AClientTransport {
     public async sendTagged(messageId: string, message: TransportMessage): Promise<void> {
         const data = this.protocol.write(writer => altWriteTransportMessage(writer, message));
 
+        const aid = message.metadata.find('aid')?.toString('utf8');
+
         const pendingRequests = this.pendingRequests.get(messageId) || [];
         if (data) {
             this.pendingRequests.set(messageId, pendingRequests.concat(this.client.post<Buffer>(this.tagRequests ? `axon/req?tag=${messageId}` : 'axon/req', data.toString('base64'), {
                 headers: {
-                    'Content-Type': 'text/plain'
+                    'Content-Type': 'text/plain',
+                    'Request-Id': aid
                 }
             })));
         }
