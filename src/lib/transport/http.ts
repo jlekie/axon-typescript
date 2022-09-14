@@ -1,6 +1,6 @@
 // import * as Http from 'http';
 // import * as Https from 'https';
-import Axios, { AxiosInstance, AxiosResponse } from 'axios';
+import Axios, { AxiosInstance, AxiosRequestHeaders, AxiosResponse } from 'axios';
 
 import * as Stream from 'stream';
 // import { ReadableStreamBuffer, WritableStreamBuffer } from 'stream-buffers';
@@ -59,11 +59,15 @@ export class HttpClientTransport extends AClientTransport {
 
         const pendingRequests = this.pendingRequests.get(messageId) || [];
         if (data) {
-            this.pendingRequests.set(messageId, pendingRequests.concat(this.client.post<Buffer>(this.tagRequests ? `axon/req?tag=${messageId}` : 'axon/req', data.toString('base64'), {
-                headers: {
-                    'Content-Type': 'text/plain',
-                    'Request-Id': aid
-                }
+            const headers: AxiosRequestHeaders = {
+                'Content-Type': 'text/plain'
+            };
+
+            if (aid)
+                headers['Request-Id'] = aid;
+
+            this.pendingRequests.set(messageId, pendingRequests.concat(this.client.post<Buffer, AxiosResponse<Buffer, any>>(this.tagRequests ? `axon/req?tag=${messageId}` : 'axon/req', data.toString('base64'), {
+                headers
             })));
         }
         else {

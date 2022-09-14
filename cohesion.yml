@@ -1,0 +1,11 @@
+labels:
+  app.cohesion.io/platform: nodejs
+  app.cohesion.io/platform/language: typescript
+tags:
+  - nodejs
+  - axon
+tasks:
+  - name: build
+    actions:
+      - type: exec
+        cmd: yarn build
