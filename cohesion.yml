@@ -9,3 +9,7 @@ tasks:
     actions:
       - type: exec
         cmd: yarn build
+  - name: publish
+    actions:
+      - type: exec
+        cmd: yarn npm publish --tolerate-republish --access=public
