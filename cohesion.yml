@@ -1,4 +1,5 @@
 labels:
+  app.cohesion.io/name: axon
   app.cohesion.io/platform: nodejs
   app.cohesion.io/platform/language: typescript
 tags:
