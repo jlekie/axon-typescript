@@ -1,6 +1,6 @@
 {
   "name": "@jlekie/axon",
-  "version": "1.0.0-alpha.12",
+  "version": "1.0.0-alpha.13",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "author": "Joe Lekie",
@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "axios": "^0.27.2",
+    "axios-retry": "^3.3.1",
     "debug": "4.2.0",
     "stream-buffers": "3.0.2",
     "uuid": "8.2.0"

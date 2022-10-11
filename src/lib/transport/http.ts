@@ -1,6 +1,7 @@
 // import * as Http from 'http';
 // import * as Https from 'https';
 import Axios, { AxiosInstance, AxiosRequestHeaders, AxiosResponse } from 'axios';
+import AxiosRetry from 'axios-retry';
 
 import * as Stream from 'stream';
 // import { ReadableStreamBuffer, WritableStreamBuffer } from 'stream-buffers';
@@ -32,6 +33,10 @@ export class HttpClientTransport extends AClientTransport {
             // httpsAgent: Https.Agent && new Https.Agent({
             //     rejectUnauthorized: false
             // })
+        });
+
+        AxiosRetry(this.client, {
+            retries: 3,
         });
 
         this.protocol = new EntanglementProtocol();
