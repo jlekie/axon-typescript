@@ -6,6 +6,9 @@ import AxiosRetry from 'axios-retry';
 import * as Stream from 'stream';
 // import { ReadableStreamBuffer, WritableStreamBuffer } from 'stream-buffers';
 
+// import * as Brotli from 'brotli-wasm';
+// import * as ZLib from 'zlib';
+
 import { AClientTransport, TransportMessage, TaggedTransportMessage, VolatileTransportMetadata, VolatileTransportMetadataFrame } from '../transport';
 
 import { IProtocolReader, IProtocolWriter } from '../protocol';
@@ -15,7 +18,7 @@ export class HttpClientTransport extends AClientTransport {
     public readonly client: AxiosInstance;
     public readonly tagRequests: boolean;
 
-    private pendingRequests: Map<string, Promise<AxiosResponse<Buffer>>[]> = new Map();
+    private pendingRequests: Map<string, Promise<AxiosResponse<ArrayBuffer>>[]> = new Map();
 
     private protocol: EntanglementProtocol;
 
@@ -39,7 +42,9 @@ export class HttpClientTransport extends AClientTransport {
             retries: 3,
         });
 
-        this.protocol = new EntanglementProtocol();
+        this.protocol = new EntanglementProtocol({
+            compress: false
+        });
     }
 
     public connect(timeout?: number | undefined): Promise<void> {
@@ -53,26 +58,29 @@ export class HttpClientTransport extends AClientTransport {
         const data = this.protocol.write(writer => altWriteTransportMessage(writer, message));
 
         if (data)
-            await this.client.post('axon/send', data.toString('base64'));
+            await this.client.post('axon/send', data);
         else
             await this.client.post('axon/send');
     }
     public async sendTagged(messageId: string, message: TransportMessage): Promise<void> {
-        const data = this.protocol.write(writer => altWriteTransportMessage(writer, message));
+        // const data = ZLib.gzipSync(this.protocol.write(writer => altWriteTransportMessage(writer, message)));
+        const data = await this.protocol.writeAsync(writer => altWriteTransportMessage(writer, message));
 
         const aid = message.metadata.find('aid')?.toString('utf8');
 
         const pendingRequests = this.pendingRequests.get(messageId) || [];
         if (data) {
             const headers: AxiosRequestHeaders = {
-                'Content-Type': 'text/plain'
+                'Content-Type': 'application/axon',
+                // 'Content-Encoding': 'br'
             };
 
             if (aid)
                 headers['Request-Id'] = aid;
 
-            this.pendingRequests.set(messageId, pendingRequests.concat(this.client.post<Buffer, AxiosResponse<Buffer, any>>(this.tagRequests ? `axon/req?tag=${messageId}` : 'axon/req', data.toString('base64'), {
-                headers
+            this.pendingRequests.set(messageId, pendingRequests.concat(this.client.post<Buffer, AxiosResponse<ArrayBuffer, any>>(this.tagRequests ? `axon/req?tag=${messageId}` : 'axon/req', data, {
+                headers,
+                responseType: 'arraybuffer'
             })));
         }
         else {
@@ -83,7 +91,7 @@ export class HttpClientTransport extends AClientTransport {
     public async receive(): Promise<TransportMessage> {
         const response = await this.client.get<Buffer>('axon/receive');
 
-        const message = this.protocol.read(Buffer.from(response.data.toString('utf8'), 'base64'), reader => altReadTransportMessage(reader));
+        const message = this.protocol.read(Buffer.from(response.data), reader => altReadTransportMessage(reader));
 
         return message;
     }
@@ -103,7 +111,8 @@ export class HttpClientTransport extends AClientTransport {
             return pendingRequest;
         })();
 
-        const message = this.protocol.read(Buffer.from(response.data.toString('utf8'), 'base64'), reader => altReadTransportMessage(reader));
+        // const data = Buffer.from(response.data.toString('utf8'), 'base64');
+        const message = await this.protocol.readAsync(Buffer.from(response.data), reader => altReadTransportMessage(reader));
 
         return message;
     }
@@ -118,6 +127,7 @@ export class HttpClientTransport extends AClientTransport {
 
 function altWriteTransportMessage(writer: IProtocolWriter, message: TransportMessage) {
     writer.writeIntegerValue(0);
+    writer.writeStringValue(message.protocolIdentifier);
     writer.writeIntegerValue(message.metadata.frames.length);
 
     for (const frame of message.metadata.frames) {
@@ -134,6 +144,8 @@ function altReadTransportMessage(reader: IProtocolReader): TransportMessage {
     if (signal !== 0)
         throw new Error(`Message received with signal code ${signal}`);
 
+    const protocolIdentifier = reader.readStringValue();
+
     const frameCount = reader.readIntegerValue();
     for (var a = 0; a < frameCount; a++) {
         const id = reader.readStringValue();
@@ -144,12 +156,12 @@ function altReadTransportMessage(reader: IProtocolReader): TransportMessage {
 
     const payloadData = reader.readData();
 
-    return new TransportMessage(payloadData, metadata);
+    return new TransportMessage(payloadData, protocolIdentifier, metadata);
 }
 
 function writeTransportMessage(writer: Stream.Writable, message: TransportMessage) {
     writeInt(writer, 0);
-
+    writeString(writer, message.protocolIdentifier);
     writeInt(writer, message.metadata.frames.length);
 
     for (const frame of message.metadata.frames) {
@@ -181,6 +193,8 @@ function readTransportMessage(reader: Stream.Readable): TransportMessage {
     if (signal !== 0)
         throw new Error(`Message received with signal code ${signal}`);
 
+    const protocolIdentifier = readString(reader);
+
     const frameCount = readInt(reader);
     for (var a = 0; a < frameCount; a++) {
         const id = readString(reader);
@@ -194,7 +208,7 @@ function readTransportMessage(reader: Stream.Readable): TransportMessage {
     const payloadLength = readInt(reader);
     const payloadData = readBuffer(reader, payloadLength);
 
-    return new TransportMessage(payloadData, metadata);
+    return new TransportMessage(payloadData, protocolIdentifier, metadata);
 }
 function readInt(reader: Stream.Readable): number {
     const buffer = readBuffer(reader, 4);

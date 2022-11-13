@@ -119,14 +119,16 @@ export class VolatileTransportMetadata implements ITransportMetadata {
 
 export class TransportMessage {
     public static fromMessage(message: TransportMessage) {
-        return new this(message.payload, VolatileTransportMetadata.fromMetadata(message.metadata));
+        return new this(message.payload, message.protocolIdentifier, VolatileTransportMetadata.fromMetadata(message.metadata));
     }
 
     public readonly payload: Buffer;
+    public readonly protocolIdentifier: string;
     public readonly metadata: VolatileTransportMetadata;
 
-    public constructor(payload: Buffer, metadata?: VolatileTransportMetadata) {
+    public constructor(payload: Buffer, protocolIdentifier: string, metadata?: VolatileTransportMetadata) {
         this.payload = payload;
+        this.protocolIdentifier = protocolIdentifier;
         this.metadata = metadata || new VolatileTransportMetadata();
     }
 }
