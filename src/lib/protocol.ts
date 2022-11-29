@@ -52,6 +52,8 @@ export interface IProtocolReader {
     readDoubleValue(): number;
     readEnumValue<T>(): T;
 
+    readHashedBlock<T = void>(handler: (reader: IProtocolReader) => T): T;
+
     readRequestHeader(): IRequestHeader;
     readRequestArgumentHeader(): IRequestArgumentHeader;
     readResponseHeader(): IResponseHeader;
@@ -78,6 +80,8 @@ export interface IProtocolWriter {
     writeFloatValue(value: number): void;
     writeDoubleValue(value: number): void;
     writeEnumValue<T>(value: T): void;
+
+    writeHashedBlock(handler: (writer: IProtocolWriter) => void): void;
 
     writeRequestHeader(header: IRequestHeader): void;
     writeRequestArgumentHeader(header: IRequestArgumentHeader): void;
@@ -110,6 +114,8 @@ export abstract class AProtocolReader implements IProtocolReader {
     public abstract readFloatValue(): number;
     public abstract readDoubleValue(): number;
     public abstract readEnumValue<T>(): T;
+
+    public abstract readHashedBlock<T = void>(handler: (reader: IProtocolReader) => T): T;
 
     public readRequestHeader() {
         const actionName = this.readStringValue();
@@ -194,6 +200,8 @@ export abstract class AProtocolWriter implements IProtocolWriter {
     public abstract writeFloatValue(value: number): void;
     public abstract writeDoubleValue(value: number): void;
     public abstract writeEnumValue<T>(value: T): void;
+
+    public abstract writeHashedBlock(handler: (writer: IProtocolWriter) => void): void;
 
     public writeRequestHeader(header: IRequestHeader) {
         this.writeStringValue(header.actionName);

@@ -1,3 +1,7 @@
+import * as Crypto from 'crypto';
+import sha256 from 'fast-sha256';
+import * as Uuid from 'uuid'
+
 import { AProtocol, AProtocolReader, AProtocolWriter, ITransport, IProtocol, IProtocolReader, IProtocolWriter, ITransportMetadata, TransportMessage, VolatileTransportMetadata } from '../..';
 
 // import * as Zlib from 'zlib';
@@ -153,45 +157,76 @@ export class EntanglementProtocol extends AProtocol {
     }
 }
 
+interface EntanglementProtocolWriterIndexParams {
+    dictionary: Record<string, number>;
+    buffer: Buffer;
+    position: number;
+}
+class EntanglementProtocolWriterIndex {
+    public readonly dictionary: Record<string, number>;
+
+    #buffer: Buffer;
+    public get buffer() {
+        return this.#buffer;
+    }
+
+    public position: number;
+
+    public constructor(params?: EntanglementProtocolWriterIndexParams) {
+        this.dictionary = params?.dictionary ?? {};
+        this.#buffer = params?.buffer ?? Buffer.allocUnsafe(1 * 1024);
+        this.position = params?.position ?? 0;
+    }
+
+    public checkPosition(length: number) {
+        while (this.position + length > this.buffer.length) {
+            // console.log('BUFFER OVERRUN', this.position + length, this.buffer.length, this.buffer.length * 2)
+            const oldBuffer = this.buffer;
+            this.#buffer = Buffer.allocUnsafe(this.buffer.length * 2);
+            oldBuffer.copy(this.buffer, 0, 0, oldBuffer.length);
+            // this.buffer = Buffer.concat([ this.buffer ], this.buffer.length * 2);
+        }
+    }
+}
+
 export class EntanglementProtocolReader extends AProtocolReader {
     public readonly buffer: Buffer;
 
     private index: Record<number, string> = {};
-    private readonly indexBufferPosition: number;
 
-    private position: number;
+    #position: number;
+    private get position()
+    {
+        return 4 + this.#position;
+    }
 
-    public constructor(protocol: AProtocol, buffer: Buffer) {
+    public constructor(protocol: AProtocol, buffer: Buffer, position?: number) {
         super(protocol);
 
         this.buffer = buffer;
-
-        const indexBufferLength = buffer.readInt32LE();
-        this.indexBufferPosition = 4;
-
-        this.position = 4 + indexBufferLength;
+        this.#position = position ?? buffer.readInt32LE();
     }
 
     public readData(): Buffer {
         const dataLength = this.buffer.readInt32LE(this.position);
-        this.position += 4;
+        this.#position += 4;
 
-        return Buffer.from(this.buffer.subarray(this.position, this.position += dataLength));
+        return Buffer.from(this.buffer.subarray(this.position, 4 + (this.#position += dataLength)));
     }
 
     public readStringValue(): string {
-        const indexPos = this.buffer.readInt32LE(this.position);
-        this.position += 4;
+        const indexPos = 4 + this.buffer.readInt32LE(this.position);
+        this.#position += 4;
 
-        if (this.index[indexPos]) {
+        if (this.index[indexPos] !== undefined) {
             return this.index[indexPos];
         }
         else {
-            const contentLength = this.buffer.readInt32LE(this.indexBufferPosition + indexPos);
+            const contentLength = this.buffer.readInt32LE(indexPos);
 
             let content: string;
             if (contentLength > 0)
-                content = this.buffer.toString('utf8', this.indexBufferPosition + indexPos + 4, this.indexBufferPosition + indexPos + 4 + contentLength);
+                content = this.buffer.toString('utf8', indexPos + 4, indexPos + 4 + contentLength);
             else
                 content = '';
 
@@ -215,31 +250,31 @@ export class EntanglementProtocolReader extends AProtocolReader {
     }
     public readBooleanValue(): boolean {
         const value = this.buffer.readIntLE(this.position, 1) === 1;
-        this.position += 1;
+        this.#position += 1;
 
         return value;
     }
     public readByteValue(): number {
         const value = this.buffer.readInt8(this.position);
-        this.position += 1;
+        this.#position += 1;
 
         return value;
     }
     public readShortValue(): number {
         const value = this.buffer.readInt16LE(this.position);
-        this.position += 2;
+        this.#position += 2;
 
         return value;
     }
     public readIntegerValue(): number {
         const value = this.buffer.readInt32LE(this.position);
-        this.position += 4;
+        this.#position += 4;
 
         return value;
     }
     public readLongValue(): bigint {
         const reversedBuffer = this.buffer.slice(this.position, this.position + 7).reverse();
-        this.position += 8;
+        this.#position += 8;
 
         const hex = reversedBuffer.toString('hex');
         if (hex.length === 0)
@@ -249,49 +284,53 @@ export class EntanglementProtocolReader extends AProtocolReader {
     }
     public readFloatValue(): number {
         const value = this.buffer.readFloatLE(this.position);
-        this.position += 4;
+        this.#position += 4;
 
         return value;
     }
     public readDoubleValue(): number {
         const value = this.buffer.readDoubleLE(this.position);
-        this.position += 8;
+        this.#position += 8;
 
         return value;
     }
     public readEnumValue<T>(): T {
         const value = this.buffer.readInt32LE(this.position);
-        this.position += 4;
+        this.#position += 4;
 
         return <T><any>value;
+    }
+
+    public readHashedBlock<T = void>(handler: (reader: IProtocolReader) => T): T {
+        const indexPos = this.buffer.readInt32LE(this.position);
+        this.#position += 4;
+
+        const forkedReader = new EntanglementProtocolReader(this.protocol, this.buffer, indexPos);
+        return handler(forkedReader);
     }
 }
 
 export class EntanglementProtocolWriter extends AProtocolWriter {
     private buffer: Buffer;
-
-    private index: Record<string, number> = {};
-    private indexBuffer: Buffer;
-
     private position: number;
-    private indexPosition: number
 
-    public constructor(protocol: AProtocol) {
+    private index: EntanglementProtocolWriterIndex;
+
+    public constructor(protocol: AProtocol, index?: EntanglementProtocolWriterIndex) {
         super(protocol);
 
-        this.buffer = Buffer.allocUnsafe(10 * 1024);
+        this.buffer = Buffer.allocUnsafe(1 * 1024);
         this.position = 0;
 
-        this.indexBuffer = Buffer.allocUnsafe(10 * 1024);
-        this.indexPosition = 0;
+        this.index = index ?? new EntanglementProtocolWriterIndex();
     }
 
     public getContents() {
-        const trimmedBuffer = Buffer.allocUnsafe(4 + this.indexPosition + this.position);
+        const trimmedBuffer = Buffer.allocUnsafe(4 + this.index.position + this.position);
 
-        trimmedBuffer.writeInt32LE(this.indexPosition);
-        this.indexBuffer.copy(trimmedBuffer, 4, 0, this.indexPosition);
-        this.buffer.copy(trimmedBuffer, 4 + this.indexPosition, 0, this.position);
+        trimmedBuffer.writeInt32LE(this.index.position);
+        this.index.buffer.copy(trimmedBuffer, 4, 0, this.index.position);
+        this.buffer.copy(trimmedBuffer, 4 + this.index.position, 0, this.position);
 
         return trimmedBuffer;
 
@@ -312,14 +351,9 @@ export class EntanglementProtocolWriter extends AProtocolWriter {
             // this.buffer = Buffer.concat([ this.buffer ], this.buffer.length * 2);
         }
     }
-    private checkIndexPosition(length: number) {
-        while (this.indexPosition + length > this.indexBuffer.length) {
-            // console.log('BUFFER OVERRUN', this.position + length, this.buffer.length, this.buffer.length * 2)
-            const oldBuffer = this.indexBuffer;
-            this.indexBuffer = Buffer.allocUnsafe(this.indexBuffer.length * 2);
-            oldBuffer.copy(this.indexBuffer, 0, 0, oldBuffer.length);
-            // this.buffer = Buffer.concat([ this.buffer ], this.buffer.length * 2);
-        }
+
+    public fork() {
+        return new EntanglementProtocolWriter(this.protocol, this.index);
     }
 
     public writeData(value: Buffer) {
@@ -333,27 +367,27 @@ export class EntanglementProtocolWriter extends AProtocolWriter {
     }
 
     public writeStringValue(value: string) {
-        if (this.index[value] !== undefined) {
+        if (this.index.dictionary[value] !== undefined) {
             this.checkPosition(4);
-            this.buffer.writeInt32LE(this.index[value], this.position);
+            this.buffer.writeInt32LE(this.index.dictionary[value], this.position);
             this.position += 4;
         }
         else {
-            this.index[value] = this.indexPosition;
+            this.index.dictionary[value] = this.index.position;
 
             this.checkPosition(4);
-            this.buffer.writeInt32LE(this.indexPosition, this.position);
+            this.buffer.writeInt32LE(this.index.position, this.position);
             this.position += 4;
 
             const contentLength = Buffer.byteLength(value, 'utf8');
 
-            this.checkIndexPosition(4);
-            this.indexBuffer.writeInt32LE(contentLength, this.indexPosition);
-            this.indexPosition += 4;
+            this.index.checkPosition(4);
+            this.index.buffer.writeInt32LE(contentLength, this.index.position);
+            this.index.position += 4;
 
-            this.checkIndexPosition(contentLength);
-            this.indexBuffer.write(value, this.indexPosition, 'utf8');
-            this.indexPosition += contentLength;
+            this.index.checkPosition(contentLength);
+            this.index.buffer.write(value, this.index.position, 'utf8');
+            this.index.position += contentLength;
         }
 
 
@@ -411,6 +445,40 @@ export class EntanglementProtocolWriter extends AProtocolWriter {
         this.checkPosition(4);
         this.buffer.writeInt32LE(<number><any>value, this.position);
         this.position += 4;
+    }
+
+    public writeHashedBlock(handler: (writer: IProtocolWriter) => void) {
+        const forkedWriter = this.fork();
+        handler(forkedWriter);
+
+        const data = Buffer.allocUnsafe(forkedWriter.position);
+        forkedWriter.buffer.copy(data, 0, 0, forkedWriter.position);
+
+        // const hash = Crypto.createHash('sha256').update(data).digest('hex');
+        const hash = Buffer.from(sha256(data)).toString('hex');
+        // console.log(hash)
+        // const hash = Uuid.v4();
+        if (this.index.dictionary[hash] !== undefined) {
+            this.checkPosition(4);
+            this.buffer.writeInt32LE(this.index.dictionary[hash], this.position);
+            this.position += 4;
+        }
+        else {
+            this.index.dictionary[hash] = this.index.position;
+
+            this.checkPosition(4);
+            this.buffer.writeInt32LE(this.index.position, this.position);
+            this.position += 4;
+
+            // this.checkPosition(4);
+            // this.buffer.writeInt32LE(data.length, this.position);
+            // this.position += 4;
+
+            this.index.checkPosition(forkedWriter.position);
+            data.copy(this.index.buffer, this.index.position, 0, forkedWriter.position);
+            // forkedWriter.buffer.copy(this.index.buffer, this.index.position, 0, forkedWriter.position);
+            this.index.position += forkedWriter.position;
+        }
     }
 }
 
