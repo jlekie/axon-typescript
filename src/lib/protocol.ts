@@ -5,6 +5,11 @@ import {
 } from './headers';
 
 export interface IProtocol {
+    readonly identifier: string;
+
+    read<T>(data: Buffer, handler: (reader: IProtocolReader) => T): T;
+    write(handler: (writer: IProtocolWriter) => void): Buffer;
+
     writeData(transport: ITransport, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
     writeTaggedData(transport: ITransport, messageId: string, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
 
@@ -16,6 +21,11 @@ export interface IProtocol {
     writeAndReadData<TResult = void>(transport: ITransport, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<(readHandler: ((protocolReader: IProtocolReader, metadata: ITransportMetadata) => TResult)) => Promise<TResult>>;
 }
 export abstract class AProtocol implements IProtocol {
+    public abstract get identifier(): string;
+
+    public abstract read<T>(data: Buffer, handler: (reader: IProtocolReader) => T): T;
+    public abstract write(handler: (writer: IProtocolWriter) => void): Buffer;
+
     public abstract writeData(transport: ITransport, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
     public abstract writeTaggedData(transport: ITransport, messageId: string, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
 
@@ -28,6 +38,8 @@ export abstract class AProtocol implements IProtocol {
 }
 
 export interface IProtocolReader {
+    readonly protocol: IProtocol;
+
     readData(): Buffer;
 
     readStringValue(): string;
@@ -39,6 +51,8 @@ export interface IProtocolReader {
     readFloatValue(): number;
     readDoubleValue(): number;
     readEnumValue<T>(): T;
+
+    readHashedBlock<T = void>(handler: (reader: IProtocolReader) => T): T;
 
     readRequestHeader(): IRequestHeader;
     readRequestArgumentHeader(): IRequestArgumentHeader;
@@ -53,6 +67,8 @@ export interface IProtocolReader {
     readIndefiniteValueHeader(): IIndefiniteValueHeader;
 }
 export interface IProtocolWriter {
+    readonly protocol: IProtocol;
+
     writeData(value: Buffer): void;
 
     writeStringValue(value: string): void;
@@ -64,6 +80,8 @@ export interface IProtocolWriter {
     writeFloatValue(value: number): void;
     writeDoubleValue(value: number): void;
     writeEnumValue<T>(value: T): void;
+
+    writeHashedBlock(handler: (writer: IProtocolWriter) => void): void;
 
     writeRequestHeader(header: IRequestHeader): void;
     writeRequestArgumentHeader(header: IRequestArgumentHeader): void;
@@ -79,6 +97,12 @@ export interface IProtocolWriter {
 }
 
 export abstract class AProtocolReader implements IProtocolReader {
+    public readonly protocol: AProtocol;
+
+    public constructor(protocol: AProtocol) {
+        this.protocol = protocol;
+    }
+
     public abstract readData(): Buffer;
 
     public abstract readStringValue(): string;
@@ -90,6 +114,8 @@ export abstract class AProtocolReader implements IProtocolReader {
     public abstract readFloatValue(): number;
     public abstract readDoubleValue(): number;
     public abstract readEnumValue<T>(): T;
+
+    public abstract readHashedBlock<T = void>(handler: (reader: IProtocolReader) => T): T;
 
     public readRequestHeader() {
         const actionName = this.readStringValue();
@@ -157,6 +183,12 @@ export abstract class AProtocolReader implements IProtocolReader {
 }
 
 export abstract class AProtocolWriter implements IProtocolWriter {
+    public readonly protocol: AProtocol;
+
+    public constructor(protocol: AProtocol) {
+        this.protocol = protocol;
+    }
+
     public abstract writeData(value: Buffer): void;
 
     public abstract writeStringValue(value: string): void;
@@ -168,6 +200,8 @@ export abstract class AProtocolWriter implements IProtocolWriter {
     public abstract writeFloatValue(value: number): void;
     public abstract writeDoubleValue(value: number): void;
     public abstract writeEnumValue<T>(value: T): void;
+
+    public abstract writeHashedBlock(handler: (writer: IProtocolWriter) => void): void;
 
     public writeRequestHeader(header: IRequestHeader) {
         this.writeStringValue(header.actionName);
