@@ -1,6 +1,6 @@
 export interface IHandledRequestMessage {
     readonly actionName: string;
-    readonly metadata: Record<string, Buffer>;
+    readonly metadata: Record<string, ArrayBuffer>;
 }
 export interface ISuccessfulHandledRequestMessage extends IHandledRequestMessage {
     readonly success: true;
@@ -15,11 +15,11 @@ export type HandledRequestMessage = ISuccessfulHandledRequestMessage | IFailedHa
 
 export class SuccessfulHandledRequestMessage implements ISuccessfulHandledRequestMessage {
     public readonly actionName: string;
-    public readonly metadata: Record<string, Buffer>;
+    public readonly metadata: Record<string, ArrayBuffer>;
     public readonly success: true;
     public readonly result: any;
 
-    public constructor(actionName: string, metadata: Record<string, Buffer>, result?: any) {
+    public constructor(actionName: string, metadata: Record<string, ArrayBuffer>, result?: any) {
         this.actionName = actionName;
         this.metadata = { ...metadata };
 
@@ -29,11 +29,11 @@ export class SuccessfulHandledRequestMessage implements ISuccessfulHandledReques
 }
 export class FailedHandledRequestMessage implements IFailedHandledRequestMessage {
     public readonly actionName: string;
-    public readonly metadata: Record<string, Buffer>;
+    public readonly metadata: Record<string, ArrayBuffer>;
     public readonly success: false;
     public readonly error: Error;
 
-    public constructor(actionName: string, metadata: Record<string, Buffer>, error: Error) {
+    public constructor(actionName: string, metadata: Record<string, ArrayBuffer>, error: Error) {
         this.actionName = actionName;
         this.metadata = { ...metadata };
 

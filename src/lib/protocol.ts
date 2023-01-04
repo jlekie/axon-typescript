@@ -7,8 +7,8 @@ import {
 export interface IProtocol {
     readonly identifier: string;
 
-    read<T>(data: Buffer, handler: (reader: IProtocolReader) => T): T;
-    write(handler: (writer: IProtocolWriter) => void): Buffer;
+    read<T>(data: ArrayBuffer, handler: (reader: IProtocolReader) => T): T;
+    write(handler: (writer: IProtocolWriter) => void): ArrayBuffer;
 
     writeData(transport: ITransport, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
     writeTaggedData(transport: ITransport, messageId: string, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
@@ -23,8 +23,8 @@ export interface IProtocol {
 export abstract class AProtocol implements IProtocol {
     public abstract get identifier(): string;
 
-    public abstract read<T>(data: Buffer, handler: (reader: IProtocolReader) => T): T;
-    public abstract write(handler: (writer: IProtocolWriter) => void): Buffer;
+    public abstract read<T>(data: ArrayBuffer, handler: (reader: IProtocolReader) => T): T;
+    public abstract write(handler: (writer: IProtocolWriter) => void): ArrayBuffer;
 
     public abstract writeData(transport: ITransport, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
     public abstract writeTaggedData(transport: ITransport, messageId: string, metadata: ITransportMetadata, handler: (protocolWriter: IProtocolWriter) => void): Promise<void>;
@@ -40,7 +40,7 @@ export abstract class AProtocol implements IProtocol {
 export interface IProtocolReader {
     readonly protocol: IProtocol;
 
-    readData(): Buffer;
+    readData(): ArrayBuffer;
 
     readStringValue(): string;
     readBooleanValue(): boolean;
@@ -69,7 +69,7 @@ export interface IProtocolReader {
 export interface IProtocolWriter {
     readonly protocol: IProtocol;
 
-    writeData(value: Buffer): void;
+    writeData(value: ArrayBuffer): void;
 
     writeStringValue(value: string): void;
     writeBooleanValue(value: boolean): void;
@@ -103,7 +103,7 @@ export abstract class AProtocolReader implements IProtocolReader {
         this.protocol = protocol;
     }
 
-    public abstract readData(): Buffer;
+    public abstract readData(): ArrayBuffer;
 
     public abstract readStringValue(): string;
     public abstract readBooleanValue(): boolean;
@@ -189,7 +189,7 @@ export abstract class AProtocolWriter implements IProtocolWriter {
         this.protocol = protocol;
     }
 
-    public abstract writeData(value: Buffer): void;
+    public abstract writeData(value: ArrayBuffer): void;
 
     public abstract writeStringValue(value: string): void;
     public abstract writeBooleanValue(value: boolean): void;

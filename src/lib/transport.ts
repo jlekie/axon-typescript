@@ -2,14 +2,14 @@ import { v4 as UuidV4 } from 'uuid';
 
 export interface ITransportMetadataFrame {
     readonly id: string;
-    readonly data: Buffer;
+    readonly data: ArrayBuffer;
 }
 export interface ITransportMetadata {
     readonly frames: readonly ITransportMetadataFrame[];
 
     has(id: string): boolean;
-    find(id: string): Buffer | undefined;
-    get(id: string): Buffer;
+    find(id: string): ArrayBuffer | undefined;
+    get(id: string): ArrayBuffer;
 }
 
 export class TransportMetadataFrame implements ITransportMetadataFrame {
@@ -18,9 +18,9 @@ export class TransportMetadataFrame implements ITransportMetadataFrame {
     }
 
     public readonly id: string;
-    public readonly data: Buffer;
+    public readonly data: ArrayBuffer;
 
-    public constructor(id: string, data: Buffer) {
+    public constructor(id: string, data: ArrayBuffer) {
         this.id = id;
         this.data = data;
     }
@@ -59,9 +59,9 @@ export class VolatileTransportMetadataFrame implements ITransportMetadataFrame {
     }
 
     public id: string;
-    public data: Buffer;
+    public data: ArrayBuffer;
 
-    public constructor(id: string, data: Buffer) {
+    public constructor(id: string, data: ArrayBuffer) {
         this.id = id;
         this.data = data;
     }
@@ -93,10 +93,10 @@ export class VolatileTransportMetadata implements ITransportMetadata {
         return frame.data;
     }
 
-    public add(id: string, data: Buffer) {
+    public add(id: string, data: ArrayBuffer) {
         this.frames.push(new VolatileTransportMetadataFrame(id, data));
     }
-    public addOrSet(id: string, data: Buffer) {
+    public addOrSet(id: string, data: ArrayBuffer) {
         const frame = this.frames.find(f => f.id === id);
         if (frame) {
             frame.data = data;
@@ -122,11 +122,11 @@ export class TransportMessage {
         return new this(message.payload, message.protocolIdentifier, VolatileTransportMetadata.fromMetadata(message.metadata));
     }
 
-    public readonly payload: Buffer;
+    public readonly payload: ArrayBuffer;
     public readonly protocolIdentifier: string;
     public readonly metadata: VolatileTransportMetadata;
 
-    public constructor(payload: Buffer, protocolIdentifier: string, metadata?: VolatileTransportMetadata) {
+    public constructor(payload: ArrayBuffer, protocolIdentifier: string, metadata?: VolatileTransportMetadata) {
         this.payload = payload;
         this.protocolIdentifier = protocolIdentifier;
         this.metadata = metadata || new VolatileTransportMetadata();
@@ -144,14 +144,14 @@ export class TaggedTransportMessage {
 }
 
 export interface IReceivedData {
-    readonly data: Buffer;
-    readonly metadata: Record<string, Buffer>;
+    readonly data: ArrayBuffer;
+    readonly metadata: Record<string, ArrayBuffer>;
 }
 export class ReceivedData implements IReceivedData {
-    public readonly data: Buffer;
-    public readonly metadata: Record<string, Buffer>;
+    public readonly data: ArrayBuffer;
+    public readonly metadata: Record<string, ArrayBuffer>;
 
-    public constructor(data: Buffer, metadata?: Record<string, Buffer>) {
+    public constructor(data: ArrayBuffer, metadata?: Record<string, ArrayBuffer>) {
         this.data = data;
 
         if (metadata)
@@ -163,16 +163,16 @@ export class ReceivedData implements IReceivedData {
 
 export interface IReceivedTaggedData {
     readonly tag: string;
-    readonly data: Buffer;
-    readonly metadata: Record<string, Buffer>;
+    readonly data: ArrayBuffer;
+    readonly metadata: Record<string, ArrayBuffer>;
 }
 
 export class ReceivedTaggedData implements IReceivedTaggedData {
     public readonly tag: string;
-    public readonly data: Buffer;
-    public readonly metadata: Record<string, Buffer>;
+    public readonly data: ArrayBuffer;
+    public readonly metadata: Record<string, ArrayBuffer>;
 
-    public constructor(tag: string, data: Buffer, metadata?: Record<string, Buffer>) {
+    public constructor(tag: string, data: ArrayBuffer, metadata?: Record<string, ArrayBuffer>) {
         this.tag = tag;
         this.data = data;
 
