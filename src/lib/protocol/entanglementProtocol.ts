@@ -479,7 +479,7 @@ export class EntanglementProtocolWriter extends AProtocolWriter {
         handler(forkedWriter);
 
         const data = Buffer.allocUnsafe(forkedWriter.position);
-        data.set(new Uint8Array(forkedWriter.buffer.slice(0, forkedWriter.buffer.byteLength)));
+        data.set(new Uint8Array(forkedWriter.buffer.slice(0, forkedWriter.position)));
 
         // const hash = Crypto.createHash('sha256').update(data).digest('hex');
         const hash = Buffer.from(sha256(data)).toString('hex');
