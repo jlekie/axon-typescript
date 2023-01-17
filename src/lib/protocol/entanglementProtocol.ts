@@ -399,18 +399,20 @@ export class EntanglementProtocolWriter extends AProtocolWriter {
             this.bufferDataView.setInt32(this.position, this.index.position, true);
             this.position += 4;
 
-            const contentLength = Buffer.byteLength(value, 'utf8');
+            // const contentLength = Buffer.byteLength(value, 'utf8');
+            const encodedValue = textEncoder.encode(value);
 
             this.index.checkPosition(4);
-            this.index.bufferDataView.setInt32(this.index.position, contentLength, true);
+            this.index.bufferDataView.setInt32(this.index.position, encodedValue.byteLength, true);
             this.index.position += 4;
 
             // this.index.checkPosition(contentLength);
             // this.index.buffer.write(value, this.index.position, 'utf8');
             // this.index.position += contentLength;
-            this.index.checkPosition(contentLength);
-            textEncoder.encodeInto(value, new Uint8Array(this.index.buffer, this.index.position));
-            this.index.position += contentLength;
+            this.index.checkPosition(encodedValue.byteLength);
+            // textEncoder.encodeInto(value, new Uint8Array(this.index.buffer, this.index.position));
+            new Uint8Array(this.index.buffer).set(encodedValue, this.index.position);
+            this.index.position += encodedValue.byteLength;
         }
 
 
@@ -478,11 +480,14 @@ export class EntanglementProtocolWriter extends AProtocolWriter {
         const forkedWriter = this.fork();
         handler(forkedWriter);
 
-        const data = Buffer.allocUnsafe(forkedWriter.position);
-        data.set(new Uint8Array(forkedWriter.buffer.slice(0, forkedWriter.position)));
+        const data = new ArrayBuffer(forkedWriter.position);
+        new Uint8Array(data).set(new Uint8Array(forkedWriter.buffer.slice(0, forkedWriter.position)));
+        // const data = Buffer.allocUnsafe(forkedWriter.position);
+        // data.set(new Uint8Array(forkedWriter.buffer.slice(0, forkedWriter.position)));
 
         // const hash = Crypto.createHash('sha256').update(data).digest('hex');
-        const hash = Buffer.from(sha256(data)).toString('hex');
+        // const hash = Buffer.from(sha256(new Uint8Array(data))).toString('hex');
+        const hash = buf2hex(sha256(new Uint8Array(data)));
         // console.log(hash)
         // const hash = Uuid.v4();
         if (this.index.dictionary[hash] !== undefined) {
@@ -502,12 +507,18 @@ export class EntanglementProtocolWriter extends AProtocolWriter {
             // this.position += 4;
 
             this.index.checkPosition(forkedWriter.position);
-            new Uint8Array(this.index.buffer).set(new Uint8Array(data.buffer.slice(0, forkedWriter.position)), this.index.position);
+            new Uint8Array(this.index.buffer).set(new Uint8Array(data), this.index.position);
             // forkedWriter.buffer.copy(this.index.buffer, this.index.position, 0, forkedWriter.position);
             this.index.position += forkedWriter.position;
         }
     }
 }
+
+function buf2hex(buffer: ArrayBuffer) {
+    return [...new Uint8Array(buffer)]
+        .map(x => x.toString(16).padStart(2, '0'))
+        .join('');
+  }
 
 // export class EntanglementAltChunckedProtocolWriter extends AProtocolWriter {
 //     private buffers: Buffer[];
