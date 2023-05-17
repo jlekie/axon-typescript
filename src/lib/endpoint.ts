@@ -16,13 +16,13 @@ export abstract class AClientEndpoint implements IClientEndpoint {
 }
 
 export interface IEndpointDecoder<TEndpoint extends IEndpoint> {
-    decode(payload: Buffer): TEndpoint;
+    decode(payload: ArrayBuffer): TEndpoint;
 }
 
 export abstract class AEndpointDecoder<TEndpoint extends IEndpoint> implements IEndpointDecoder<TEndpoint> {
-    abstract decode(payload: Buffer): TEndpoint;
+    abstract decode(payload: ArrayBuffer): TEndpoint;
 }
 
 export interface IEncodableEndpoint extends IEndpoint {
-    encode(): Buffer;
+    encode(): ArrayBuffer;
 }

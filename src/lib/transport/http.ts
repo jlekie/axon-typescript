@@ -22,6 +22,8 @@ export class HttpClientTransport extends AClientTransport {
 
     private protocol: EntanglementProtocol;
 
+    private textDecoder = new TextDecoder('utf-8');
+
     public constructor(url: string, options: Partial<Pick<HttpClientTransport, 'tagRequests'>> = {}) {
         super();
 
@@ -66,7 +68,7 @@ export class HttpClientTransport extends AClientTransport {
         // const data = ZLib.gzipSync(this.protocol.write(writer => altWriteTransportMessage(writer, message)));
         const data = await this.protocol.writeAsync(writer => altWriteTransportMessage(writer, message));
 
-        const aid = message.metadata.find('aid')?.toString('utf8');
+        const aid = this.textDecoder.decode(message.metadata.find('aid'));
 
         const pendingRequests = this.pendingRequests.get(messageId) || [];
         if (data) {
@@ -78,20 +80,20 @@ export class HttpClientTransport extends AClientTransport {
             if (aid)
                 headers['Request-Id'] = aid;
 
-            this.pendingRequests.set(messageId, pendingRequests.concat(this.client.post<Buffer, AxiosResponse<ArrayBuffer, any>>(this.tagRequests ? `axon/req?tag=${messageId}` : 'axon/req', data, {
+            this.pendingRequests.set(messageId, pendingRequests.concat(this.client.post<ArrayBuffer, AxiosResponse<ArrayBuffer, any>>(this.tagRequests ? `axon/req?tag=${messageId}` : 'axon/req', data, {
                 headers,
                 responseType: 'arraybuffer'
             })));
         }
         else {
-            this.pendingRequests.set(messageId, pendingRequests.concat(this.client.post<Buffer>(this.tagRequests ? `axon/req?tag=${messageId}` : 'axon/req')));
+            this.pendingRequests.set(messageId, pendingRequests.concat(this.client.post<ArrayBuffer>(this.tagRequests ? `axon/req?tag=${messageId}` : 'axon/req')));
         }
     }
 
     public async receive(): Promise<TransportMessage> {
-        const response = await this.client.get<Buffer>('axon/receive');
+        const response = await this.client.get<ArrayBuffer>('axon/receive');
 
-        const message = this.protocol.read(Buffer.from(response.data), reader => altReadTransportMessage(reader));
+        const message = this.protocol.read(response.data, reader => altReadTransportMessage(reader));
 
         return message;
     }
@@ -112,7 +114,7 @@ export class HttpClientTransport extends AClientTransport {
         })();
 
         // const data = Buffer.from(response.data.toString('utf8'), 'base64');
-        const message = await this.protocol.readAsync(Buffer.from(response.data), reader => altReadTransportMessage(reader));
+        const message = await this.protocol.readAsync(response.data, reader => altReadTransportMessage(reader));
 
         return message;
     }
@@ -159,73 +161,73 @@ function altReadTransportMessage(reader: IProtocolReader): TransportMessage {
     return new TransportMessage(payloadData, protocolIdentifier, metadata);
 }
 
-function writeTransportMessage(writer: Stream.Writable, message: TransportMessage) {
-    writeInt(writer, 0);
-    writeString(writer, message.protocolIdentifier);
-    writeInt(writer, message.metadata.frames.length);
+// function writeTransportMessage(writer: Stream.Writable, message: TransportMessage) {
+//     writeInt(writer, 0);
+//     writeString(writer, message.protocolIdentifier);
+//     writeInt(writer, message.metadata.frames.length);
 
-    for (const frame of message.metadata.frames) {
-        writeString(writer, frame.id);
+//     for (const frame of message.metadata.frames) {
+//         writeString(writer, frame.id);
 
-        writeInt(writer, frame.data.length);
-        writer.write(frame.data);
-    }
+//         writeInt(writer, frame.data.byteLength);
+//         writer.write(frame.data);
+//     }
 
-    writeInt(writer, message.payload.length);
-    writer.write(message.payload);
-}
-function writeInt(writer: Stream.Writable, value: number) {
-    const codeBuffer = Buffer.alloc(4);
-    codeBuffer.writeInt32LE(value, 0);
-    writer.write(codeBuffer);
-}
-function writeString(writer: Stream.Writable, value: string) {
-    const encodedValue = Buffer.from(value, 'utf8');
+//     writeInt(writer, message.payload.byteLength);
+//     writer.write(message.payload);
+// }
+// function writeInt(writer: Stream.Writable, value: number) {
+//     const codeBuffer = Buffer.alloc(4);
+//     codeBuffer.writeInt32LE(value, 0);
+//     writer.write(codeBuffer);
+// }
+// function writeString(writer: Stream.Writable, value: string) {
+//     const encodedValue = Buffer.from(value, 'utf8');
 
-    writeInt(writer, encodedValue.length)
-    writer.write(encodedValue);
-}
+//     writeInt(writer, encodedValue.length)
+//     writer.write(encodedValue);
+// }
 
-function readTransportMessage(reader: Stream.Readable): TransportMessage {
-    const metadata = new VolatileTransportMetadata();
+// function readTransportMessage(reader: Stream.Readable): TransportMessage {
+//     const metadata = new VolatileTransportMetadata();
 
-    const signal = readInt(reader);
-    if (signal !== 0)
-        throw new Error(`Message received with signal code ${signal}`);
+//     const signal = readInt(reader);
+//     if (signal !== 0)
+//         throw new Error(`Message received with signal code ${signal}`);
 
-    const protocolIdentifier = readString(reader);
+//     const protocolIdentifier = readString(reader);
 
-    const frameCount = readInt(reader);
-    for (var a = 0; a < frameCount; a++) {
-        const id = readString(reader);
+//     const frameCount = readInt(reader);
+//     for (var a = 0; a < frameCount; a++) {
+//         const id = readString(reader);
 
-        const dataLength = readInt(reader);
-        const data = readBuffer(reader, dataLength);
+//         const dataLength = readInt(reader);
+//         const data = readBuffer(reader, dataLength);
 
-        metadata.frames.push(new VolatileTransportMetadataFrame(id, data));
-    }
+//         metadata.frames.push(new VolatileTransportMetadataFrame(id, data));
+//     }
 
-    const payloadLength = readInt(reader);
-    const payloadData = readBuffer(reader, payloadLength);
+//     const payloadLength = readInt(reader);
+//     const payloadData = readBuffer(reader, payloadLength);
 
-    return new TransportMessage(payloadData, protocolIdentifier, metadata);
-}
-function readInt(reader: Stream.Readable): number {
-    const buffer = readBuffer(reader, 4);
+//     return new TransportMessage(payloadData, protocolIdentifier, metadata);
+// }
+// function readInt(reader: Stream.Readable): number {
+//     const buffer = readBuffer(reader, 4);
 
-    return buffer.readInt32LE(0);
-}
-function readString(reader: Stream.Readable): string {
-    const length = readInt(reader);
+//     return buffer.readInt32LE(0);
+// }
+// function readString(reader: Stream.Readable): string {
+//     const length = readInt(reader);
 
-    const buffer = readBuffer(reader, length);
-    return buffer.toString('utf8');
-}
-function readBuffer(reader: Stream.Readable, size: number): Buffer {
-    const buffer = reader.read(size);
+//     const buffer = readBuffer(reader, length);
+//     return buffer.toString('utf8');
+// }
+// function readBuffer(reader: Stream.Readable, size: number): ArrayBuffer {
+//     const buffer = reader.read(size);
 
-    return buffer;
-}
+//     return buffer;
+// }
 
 function delay(duration: number): Promise<void> {
     return new Promise((resolve) => setTimeout(() => resolve(), duration))
