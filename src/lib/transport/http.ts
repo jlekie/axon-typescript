@@ -1,7 +1,7 @@
 // import * as Http from 'http';
 // import * as Https from 'https';
-import Axios, { AxiosInstance, AxiosRequestHeaders, AxiosResponse } from 'axios';
-import AxiosRetry from 'axios-retry';
+import Axios, { AxiosInstance, AxiosRequestHeaders, AxiosHeaders, AxiosResponse } from 'axios';
+import * as AxiosRetry from 'axios-retry';
 
 import * as Stream from 'stream';
 // import { ReadableStreamBuffer, WritableStreamBuffer } from 'stream-buffers';
@@ -42,6 +42,11 @@ export class HttpClientTransport extends AClientTransport {
 
         AxiosRetry(this.client, {
             retries: 3,
+            retryDelay: (retryCount, err) => AxiosRetry.exponentialDelay(retryCount, err, 1000),
+            retryCondition: (err) => AxiosRetry.isNetworkOrIdempotentRequestError(err),
+            onRetry: (retryCount, err) => {
+                console.log(`Axios Request Retry [${retryCount}]`, err);
+            }
         });
 
         this.protocol = new EntanglementProtocol({
@@ -72,7 +77,7 @@ export class HttpClientTransport extends AClientTransport {
 
         const pendingRequests = this.pendingRequests.get(messageId) || [];
         if (data) {
-            const headers: AxiosRequestHeaders = {
+            const headers: Record<string, string> = {
                 'Content-Type': 'application/axon',
                 // 'Content-Encoding': 'br'
             };
