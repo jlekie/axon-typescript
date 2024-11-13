@@ -242,12 +242,12 @@ export class EntanglementProtocolReader extends AProtocolReader {
             const contentLength = this.bufferDataView.getInt32(indexPos, true);
 
             let content: string;
-            if (contentLength > 200)
+            if (contentLength > 0)
                 // content = String.fromCharCode.apply(null, new Uint8Array(this.buffer, indexPos + 4, contentLength));
                 content = textDecoder.decode(new Uint8Array(this.buffer, indexPos + 4, contentLength));
                 // content = textDecoder.decode(this.buffer.slice(indexPos + 4, indexPos + 4 + contentLength));
-            else if (contentLength > 0)
-                content = String.fromCharCode.apply(null, new Uint8Array(this.buffer, indexPos + 4, contentLength));
+            // else if (contentLength > 0)
+            //     content = String.fromCharCode.apply(null, new Uint8Array(this.buffer, indexPos + 4, contentLength));
             else
                 content = '';
 
